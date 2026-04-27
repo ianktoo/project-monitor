@@ -53,19 +53,19 @@ git --version
 [pipx](https://pipx.pypa.io) installs CLI tools in their own isolated environment so they never interfere with your other Python projects. This is the recommended way to install `p-mon`.
 
 ```bash
-pipx install p-mon
+pipx install pmon-cli
 ```
 
 To upgrade later:
 
 ```bash
-pipx upgrade p-mon
+pipx upgrade pmon-cli
 ```
 
 ### Standard — pip
 
 ```bash
-pip install p-mon
+pip install pmon-cli
 ```
 
 > **Windows note:** if `p-mon` is not found after installing, the Python Scripts folder may not be on your PATH. Run `python -m project_monitor` as a fallback, or add the Scripts folder to your PATH. pip will print the folder path in a warning if this is the case.
@@ -85,13 +85,13 @@ pip install .
 ### If installed with pipx
 
 ```bash
-pipx uninstall p-mon
+pipx uninstall pmon-cli
 ```
 
 ### If installed with pip
 
 ```bash
-pip uninstall p-mon
+pip uninstall pmon-cli
 ```
 
 This removes the package and the `p-mon` command. It does not touch any log files or output files you created.
@@ -195,7 +195,7 @@ The Python Scripts folder is not on your PATH.
 
 **Option 1 — use pipx** (recommended, handles PATH automatically):
 ```bash
-pipx install p-mon
+pipx install pmon-cli
 ```
 
 **Option 2 — run as a module** (always works):

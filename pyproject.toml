@@ -3,7 +3,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "p-mon"
+name = "pmon-cli"
 version = "0.1.0"
 description = "Scan a folder for git repos and view their status at a glance"
 readme = "README.md"
