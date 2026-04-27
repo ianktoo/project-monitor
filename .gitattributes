@@ -1,0 +1,12 @@
+# Normalize line endings to LF on commit, checkout as-is on Windows
+* text=auto eol=lf
+*.py text eol=lf
+*.md text eol=lf
+*.toml text eol=lf
+*.txt text eol=lf
+
+# Binaries — never touch
+*.whl binary
+*.gz binary
+*.png binary
+*.jpg binary
