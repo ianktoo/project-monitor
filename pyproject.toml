@@ -3,7 +3,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "pmon"
+name = "p-mon"
 version = "0.1.0"
 description = "Scan a folder for git repos and view their status at a glance"
 readme = "README.md"
@@ -33,7 +33,7 @@ Homepage = "https://github.com/ianktoo/project-monitor"
 Issues = "https://github.com/ianktoo/project-monitor/issues"
 
 [project.scripts]
-pmon = "project_monitor.cli:app"
+p-mon = "project_monitor.cli:app"
 
 [project.optional-dependencies]
 dev = ["pytest>=8.0.0"]

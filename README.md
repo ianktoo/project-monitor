@@ -1,4 +1,4 @@
-# project-monitor (`pmon`)
+# project-monitor (`p-mon`)
 
 Scan a folder for git repositories and view their commit status at a glance — in one table, in your terminal.
 
@@ -26,7 +26,7 @@ Scan a folder for git repositories and view their commit status at a glance — 
 - [Reading the output](#reading-the-output)
 - [Troubleshooting](#troubleshooting)
 - [Debug and logs](#debug-and-logs)
-- [Extending pmon](#extending-pmon)
+- [Extending p-mon](#extending-p-mon)
 - [Contributing](#contributing)
 - [License](#license)
 
@@ -50,25 +50,25 @@ git --version
 
 ### Recommended — pipx (isolated, global install)
 
-[pipx](https://pipx.pypa.io) installs CLI tools in their own isolated environment so they never interfere with your other Python projects. This is the recommended way to install `pmon`.
+[pipx](https://pipx.pypa.io) installs CLI tools in their own isolated environment so they never interfere with your other Python projects. This is the recommended way to install `p-mon`.
 
 ```bash
-pipx install pmon
+pipx install p-mon
 ```
 
 To upgrade later:
 
 ```bash
-pipx upgrade pmon
+pipx upgrade p-mon
 ```
 
 ### Standard — pip
 
 ```bash
-pip install pmon
+pip install p-mon
 ```
 
-> **Windows note:** if `pmon` is not found after installing, the Python Scripts folder may not be on your PATH. Run `python -m project_monitor` as a fallback, or add the Scripts folder to your PATH. pip will print the folder path in a warning if this is the case.
+> **Windows note:** if `p-mon` is not found after installing, the Python Scripts folder may not be on your PATH. Run `python -m project_monitor` as a fallback, or add the Scripts folder to your PATH. pip will print the folder path in a warning if this is the case.
 
 ### From source
 
@@ -85,16 +85,16 @@ pip install .
 ### If installed with pipx
 
 ```bash
-pipx uninstall pmon
+pipx uninstall p-mon
 ```
 
 ### If installed with pip
 
 ```bash
-pip uninstall pmon
+pip uninstall p-mon
 ```
 
-This removes the package and the `pmon` command. It does not touch any log files or output files you created.
+This removes the package and the `p-mon` command. It does not touch any log files or output files you created.
 
 ---
 
@@ -102,16 +102,16 @@ This removes the package and the `pmon` command. It does not touch any log files
 
 ```bash
 # Scan your current folder
-pmon
+p-mon
 
 # Scan a specific folder
-pmon C:\Users\you\Projects
+p-mon C:\Users\you\Projects
 
 # Scan only one level deep
-pmon C:\Users\you\Projects --depth 1
+p-mon C:\Users\you\Projects --depth 1
 
 # Save results to a text file
-pmon C:\Users\you\Projects --output status.txt
+p-mon C:\Users\you\Projects --output status.txt
 ```
 
 ---
@@ -119,7 +119,7 @@ pmon C:\Users\you\Projects --output status.txt
 ## CLI reference
 
 ```
-pmon [PATH] [OPTIONS]
+p-mon [PATH] [OPTIONS]
 ```
 
 | Argument / Option     | Default            | Description                                       |
@@ -137,28 +137,28 @@ pmon [PATH] [OPTIONS]
 
 ```bash
 # Scan your projects at default depth (2 levels)
-pmon ~/Projects
+p-mon ~/Projects
 
 # Only look one level deep
-pmon ~/Projects --depth 1
+p-mon ~/Projects --depth 1
 
 # Go three levels deep (e.g. org/team/repo)
-pmon ~/Projects --depth 3
+p-mon ~/Projects --depth 3
 
 # Export to a plain-text file (no colour codes)
-pmon ~/Projects --output status.txt
+p-mon ~/Projects --output status.txt
 
 # Combine: scan, export, and save a debug log
-pmon ~/Projects --output status.txt --log-file pmon.log
+p-mon ~/Projects --output status.txt --log-file p-mon.log
 
 # Disable colour for piping or non-colour terminals
-pmon ~/Projects --no-color
+p-mon ~/Projects --no-color
 
 # Show live debug output while scanning
-pmon ~/Projects --verbose
+p-mon ~/Projects --verbose
 
 # Check version
-pmon --version
+p-mon --version
 ```
 
 ---
@@ -189,13 +189,13 @@ The summary line below the table counts total repos, how many are clean, and how
 
 ## Troubleshooting
 
-### `pmon: command not found` / `pmon is not recognised`
+### `p-mon: command not found` / `p-mon is not recognised`
 
 The Python Scripts folder is not on your PATH.
 
 **Option 1 — use pipx** (recommended, handles PATH automatically):
 ```bash
-pipx install pmon
+pipx install p-mon
 ```
 
 **Option 2 — run as a module** (always works):
@@ -211,7 +211,7 @@ Find the Scripts folder pip printed during install (e.g. `C:\Users\you\AppData\R
 
 ### `Error: git is not installed or not found on PATH`
 
-`pmon` requires git. Install it from [https://git-scm.com](https://git-scm.com) and ensure `git --version` works in your terminal before running `pmon` again.
+`p-mon` requires git. Install it from [https://git-scm.com](https://git-scm.com) and ensure `git --version` works in your terminal before running `p-mon` again.
 
 On Windows, you may need to restart your terminal after installing git.
 
@@ -223,43 +223,43 @@ On Windows, you may need to restart your terminal after installing git.
 No git repositories found under C:\your\folder
 ```
 
-This means `pmon` did not find a `.git` folder within the scan depth.
+This means `p-mon` did not find a `.git` folder within the scan depth.
 
 - Check that the folder actually contains git repos (`ls -a` / `dir /a` inside a project should show `.git`).
-- Try increasing the depth: `pmon . --depth 3`
-- If the repos are nested more than 3 levels deep, `pmon` does not support that at present.
+- Try increasing the depth: `p-mon . --depth 3`
+- If the repos are nested more than 3 levels deep, `p-mon` does not support that at present.
 
 ---
 
 ### Output looks garbled or has `?` characters
 
-This is a terminal encoding issue. `pmon` outputs UTF-8. If your terminal is configured for a legacy encoding (common on older Windows cmd):
+This is a terminal encoding issue. `p-mon` outputs UTF-8. If your terminal is configured for a legacy encoding (common on older Windows cmd):
 
 ```bash
 # Windows — set UTF-8 for the current session
 chcp 65001
 
-# Then run pmon
-pmon .
+# Then run p-mon
+p-mon .
 ```
 
 Or use `--no-color` which also avoids Unicode symbols in the Status column:
 
 ```bash
-pmon . --no-color
+p-mon . --no-color
 ```
 
 ---
 
 ### A repo shows `Error` in the Status column
 
-`pmon` ran `git status` inside that repository and git returned a non-zero exit code. Common causes:
+`p-mon` ran `git status` inside that repository and git returned a non-zero exit code. Common causes:
 
 - The `.git` folder is corrupted — try `git status` manually inside the repo.
 - The repo is a git submodule or worktree with a missing parent.
 - git timed out (default timeout is 5 seconds) — this can happen on network-mounted drives.
 
-Run `pmon --verbose` to see the exact error message for that repo.
+Run `p-mon --verbose` to see the exact error message for that repo.
 
 ---
 
@@ -284,7 +284,7 @@ Each repo requires two `git` calls (5-second timeout each). If you have many rep
 Prints one debug log line per action (repo found, git call made, result parsed) to stderr:
 
 ```bash
-pmon ~/Projects --verbose
+p-mon ~/Projects --verbose
 ```
 
 ### Save logs to a file
@@ -292,13 +292,13 @@ pmon ~/Projects --verbose
 Logs are appended (not overwritten) so you can keep a history:
 
 ```bash
-pmon ~/Projects --log-file pmon.log
+p-mon ~/Projects --log-file p-mon.log
 ```
 
 You can combine both — verbose to stderr and a persistent file:
 
 ```bash
-pmon ~/Projects --verbose --log-file pmon.log
+p-mon ~/Projects --verbose --log-file p-mon.log
 ```
 
 ### Log format
@@ -314,11 +314,11 @@ All loggers live under the `project_monitor` namespace, so you can filter them w
 
 ---
 
-## Extending pmon
+## Extending p-mon
 
-`pmon` is designed to be extended without modifying the core. See [CONTRIBUTING.md](CONTRIBUTING.md) for the full developer guide.
+`p-mon` is designed to be extended without modifying the core. See [CONTRIBUTING.md](CONTRIBUTING.md) for the full developer guide.
 
-### Using pmon as a library
+### Using p-mon as a library
 
 ```python
 from pathlib import Path
