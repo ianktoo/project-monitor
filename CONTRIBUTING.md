@@ -27,7 +27,7 @@ This document is for developers who want to contribute to `pmon`, build on top o
 
 ```bash
 # 1. Clone the repo
-git clone https://github.com/CompassPoint-Mentorship/project-monitor
+git clone https://github.com/ianktoo/project-monitor
 cd project-monitor
 
 # 2. Install in editable mode with dev dependencies

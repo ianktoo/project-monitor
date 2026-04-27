@@ -29,8 +29,8 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/CompassPoint-Mentorship/project-monitor"
-Issues = "https://github.com/CompassPoint-Mentorship/project-monitor/issues"
+Homepage = "https://github.com/ianktoo/project-monitor"
+Issues = "https://github.com/ianktoo/project-monitor/issues"
 
 [project.scripts]
 pmon = "project_monitor.cli:app"

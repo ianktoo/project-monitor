@@ -73,7 +73,7 @@ pip install project-monitor
 ### From source
 
 ```bash
-git clone https://github.com/CompassPoint-Mentorship/project-monitor
+git clone https://github.com/ianktoo/project-monitor
 cd project-monitor
 pip install .
 ```
