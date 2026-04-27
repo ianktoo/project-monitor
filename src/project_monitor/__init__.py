@@ -2,6 +2,7 @@
 
 from project_monitor.models import RepoInfo
 from project_monitor.formatters import OutputFormatter
+from project_monitor.store import TagStore
 
-__version__ = "0.3.1"
-__all__ = ["RepoInfo", "OutputFormatter", "__version__"]
+__version__ = "0.3.2"
+__all__ = ["RepoInfo", "OutputFormatter", "TagStore", "__version__"]

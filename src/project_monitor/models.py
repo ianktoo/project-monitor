@@ -27,6 +27,8 @@ class RepoInfo:
         behind: Commits behind the upstream remote branch.
         has_remote: True if an upstream remote tracking branch is configured.
         error: Non-None if any git command failed; contains the error message.
+        tag: Optional user-assigned label from the pmon tag store.
+        date_added: ISO timestamp when this path was tagged, from the store.
     """
 
     name: str
@@ -41,6 +43,8 @@ class RepoInfo:
     behind: int = 0
     has_remote: bool = False
     error: str | None = None
+    tag: str | None = None
+    date_added: str | None = None
 
     @property
     def is_clean(self) -> bool:

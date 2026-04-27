@@ -14,6 +14,8 @@ from project_monitor.formatters.table import (
     _remote_cell,
     _status_cell,
     _summary_line,
+    _tag_cell,
+    _path_cell,
 )
 from project_monitor.formatters.text import TextFormatter
 from project_monitor.models import RepoInfo
@@ -264,3 +266,131 @@ def test_text_formatter_bad_path_raises(tmp_path: Path):
     bad_path = tmp_path / "nonexistent_dir" / "output.txt"
     with pytest.raises(OSError):
         TextFormatter(bad_path).render([])
+
+
+# ---------------------------------------------------------------------------
+# _tag_cell / _path_cell
+
+
+def test_tag_cell_with_tag():
+    markup = _tag_cell(_repo(tag="work"))
+    assert "work" in markup
+
+
+def test_tag_cell_without_tag():
+    markup = _tag_cell(_repo(tag=None))
+    assert "—" in markup
+
+
+def test_path_cell_contains_path():
+    p = Path("/home/user/my-project")
+    markup = _path_cell(_repo(path=p))
+    assert "my-project" in markup
+
+
+# ---------------------------------------------------------------------------
+# render() — tag column appears when repos have tags
+
+
+def test_render_shows_tag_column_when_tagged(tmp_path: Path):
+    buf = io.StringIO()
+    repo = RepoInfo(name="x", path=tmp_path, branch="main", tag="work")
+    TableFormatter(file=buf, use_color=False, ascii_only=True).render([repo])
+    output = buf.getvalue()
+    assert "Tag" in output
+    assert "work" in output
+
+
+def test_render_hides_tag_column_when_untagged(tmp_path: Path):
+    buf = io.StringIO()
+    repo = RepoInfo(name="x", path=tmp_path, branch="main")
+    TableFormatter(file=buf, use_color=False, ascii_only=True).render([repo])
+    output = buf.getvalue()
+    assert "Tag" not in output
+
+
+# ---------------------------------------------------------------------------
+# render_local()
+
+
+def test_render_local_shows_path_column(tmp_path: Path):
+    buf = io.StringIO()
+    repo = RepoInfo(name="myrepo", path=tmp_path, branch="main")
+    TableFormatter(file=buf, use_color=False, ascii_only=True).render_local([repo])
+    output = buf.getvalue()
+    assert "Path" in output
+    assert "myrepo" in output
+
+
+def test_render_local_no_remote_column(tmp_path: Path):
+    buf = io.StringIO()
+    repo = RepoInfo(name="r", path=tmp_path, branch="main", has_remote=True)
+    TableFormatter(file=buf, use_color=False, ascii_only=True).render_local([repo])
+    output = buf.getvalue()
+    assert "Remote" not in output
+
+
+def test_render_local_shows_tag(tmp_path: Path):
+    buf = io.StringIO()
+    repo = RepoInfo(name="r", path=tmp_path, branch="main", tag="personal")
+    TableFormatter(file=buf, use_color=False, ascii_only=True).render_local([repo])
+    output = buf.getvalue()
+    assert "personal" in output
+
+
+def test_render_local_empty_list():
+    buf = io.StringIO()
+    TableFormatter(file=buf, use_color=False, ascii_only=True).render_local([])
+    assert "No git repositories found" in buf.getvalue()
+
+
+# ---------------------------------------------------------------------------
+# render_global()
+
+
+def test_render_global_shows_tag_and_path(tmp_path: Path):
+    buf = io.StringIO()
+    repo = RepoInfo(
+        name="my-app", path=tmp_path, branch="main",
+        tag="work", date_added="2024-06-01T10:00:00",
+    )
+    TableFormatter(file=buf, use_color=False, ascii_only=True).render_global([repo])
+    output = buf.getvalue()
+    assert "my-app" in output
+    assert "work" in output
+    assert "2024-06-01" in output
+
+
+def test_render_global_empty_list():
+    buf = io.StringIO()
+    TableFormatter(file=buf, use_color=False, ascii_only=True).render_global([])
+    assert "No tagged projects found" in buf.getvalue()
+
+
+def test_render_global_local_shows_store_data(tmp_path: Path):
+    buf = io.StringIO()
+    entries = [
+        {
+            "path": tmp_path / "proj",
+            "tag": "side",
+            "name": "proj",
+            "added_at": "2024-01-15T08:30:00",
+        }
+    ]
+    TableFormatter(file=buf, use_color=False, ascii_only=True).render_global_local(entries)
+    output = buf.getvalue()
+    assert "proj" in output
+    assert "side" in output
+    assert "2024-01-15" in output
+
+
+# ---------------------------------------------------------------------------
+# render_compact() — tag indicator
+
+
+def test_render_compact_shows_tag_when_present(tmp_path: Path):
+    buf = io.StringIO()
+    repo = RepoInfo(name="r", path=tmp_path, branch="main", tag="work")
+    TableFormatter(file=buf, use_color=False, ascii_only=True).render_compact([repo])
+    output = buf.getvalue()
+    assert "work" in output

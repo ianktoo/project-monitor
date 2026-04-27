@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: "Release tag to upload assets to (e.g. v0.3.1)"
+        description: "Release tag to upload assets to (e.g. v0.3.2)"
         required: false
   release:
     types: [published]
@@ -22,15 +22,19 @@ jobs:
           - os: ubuntu-latest
             artifact: pmon-linux-x86_64
             exe: pmon
+            pyinstaller_extra: "--strip"
           - os: macos-13
             artifact: pmon-macos-intel
             exe: pmon
+            pyinstaller_extra: ""
           - os: macos-latest
             artifact: pmon-macos-arm64
             exe: pmon
+            pyinstaller_extra: ""
           - os: windows-latest
             artifact: pmon-windows-x86_64
             exe: pmon.exe
+            pyinstaller_extra: ""
 
     steps:
       - uses: actions/checkout@v4
@@ -38,12 +42,19 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+          cache: "pip"
 
       - name: Install package and PyInstaller
         run: pip install -e . pyinstaller
 
       - name: Build executable
-        run: pyinstaller --onefile --name pmon src/project_monitor/__main__.py
+        run: >
+          pyinstaller
+          --onefile
+          --name pmon
+          --noupx
+          ${{ matrix.pyinstaller_extra }}
+          src/project_monitor/__main__.py
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
