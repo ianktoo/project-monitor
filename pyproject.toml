@@ -29,7 +29,8 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/ianktoo/project-monitor"
+Homepage = "https://iantoo.space"
+Repository = "https://github.com/ianktoo/project-monitor"
 Issues = "https://github.com/ianktoo/project-monitor/issues"
 
 [project.scripts]
