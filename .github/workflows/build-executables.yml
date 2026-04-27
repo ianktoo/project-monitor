@@ -1,0 +1,53 @@
+name: Build Executables
+
+on:
+  workflow_dispatch:
+  release:
+    types: [published]
+
+jobs:
+  build:
+    name: Build (${{ matrix.artifact }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            artifact: pmon-linux-x86_64
+            exe: pmon
+          - os: macos-13
+            artifact: pmon-macos-intel
+            exe: pmon
+          - os: macos-latest
+            artifact: pmon-macos-arm64
+            exe: pmon
+          - os: windows-latest
+            artifact: pmon-windows-x86_64
+            exe: pmon.exe
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install package and PyInstaller
+        run: pip install -e . pyinstaller
+
+      - name: Build executable
+        run: pyinstaller --onefile --name pmon src/project_monitor/__main__.py
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: dist/${{ matrix.exe }}
+
+      - name: Upload to release
+        if: github.event_name == 'release'
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release upload "${{ github.ref_name }}" "dist/${{ matrix.exe }}#${{ matrix.artifact }}"

@@ -20,6 +20,10 @@ Scan a folder for git repositories and view their commit status at a glance — 
 
 - [Requirements](#requirements)
 - [Installation](#installation)
+  - [Download pre-built binary](#download-pre-built-binary)
+  - [pipx (recommended)](#recommended--pipx-isolated-global-install)
+  - [pip](#standard--pip)
+  - [From source](#from-source)
 - [Uninstallation](#uninstallation)
 - [Quick start](#quick-start)
 - [CLI reference](#cli-reference)
@@ -47,6 +51,21 @@ git --version
 ---
 
 ## Installation
+
+### Download pre-built binary
+
+No Python or pip required — grab the standalone executable for your platform from the [**Releases page**](https://github.com/ianktoo/project-monitor/releases/latest):
+
+| Platform | File |
+|---|---|
+| Windows (x86-64) | `pmon-windows-x86_64.exe` |
+| macOS (Apple Silicon) | `pmon-macos-arm64` |
+| macOS (Intel) | `pmon-macos-intel` |
+| Linux (x86-64) | `pmon-linux-x86_64` |
+
+Download, make it executable (macOS/Linux: `chmod +x pmon-*`), and drop it anywhere on your `PATH`.
+
+---
 
 ### Recommended — pipx (isolated, global install)
 
@@ -107,6 +126,9 @@ p-mon
 # Scan a specific folder
 p-mon C:\Users\you\Projects
 
+# Condensed one-line view (great for many repos)
+p-mon C:\Users\you\Projects --compact
+
 # Scan only one level deep
 p-mon C:\Users\you\Projects --depth 1
 
@@ -126,6 +148,7 @@ p-mon [PATH] [OPTIONS]
 |-----------------------|--------------------|---------------------------------------------------|
 | `PATH`                | current directory  | Directory to scan                                 |
 | `--depth INT` / `-d`  | `2`                | Max folder depth to search (1–3)                  |
+| `--compact` / `-c`    | off                | Condensed one-line-per-repo view                  |
 | `--output FILE` / `-o`| —                  | Write plain-text results to FILE instead of terminal |
 | `--no-color`          | off                | Disable colour output (useful in CI or scripts)   |
 | `--verbose` / `-v`    | off                | Print debug log lines to stderr                   |
@@ -150,6 +173,9 @@ p-mon ~/Projects --output status.txt
 
 # Combine: scan, export, and save a debug log
 p-mon ~/Projects --output status.txt --log-file p-mon.log
+
+# Compact one-liner per repo (great for 10+ repos)
+p-mon ~/Projects --compact
 
 # Disable colour for piping or non-colour terminals
 p-mon ~/Projects --no-color

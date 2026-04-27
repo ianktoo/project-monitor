@@ -39,6 +39,29 @@ class TableFormatter:
         )
         self._box_style = box.ASCII2 if ascii_only else box.ROUNDED
 
+    def render_compact(self, repos: list[RepoInfo]) -> None:
+        """Print a condensed one-line-per-repo list."""
+        if not repos:
+            self._console.print("[yellow]No git repositories found.[/yellow]")
+            return
+
+        name_w = max(len(r.name) for r in repos) + 2
+        branch_w = max((len(r.branch or "") for r in repos), default=6) + 2
+
+        for repo in repos:
+            icon = "[green]✓[/green]" if (repo.is_clean and not repo.error) else "[red]✗[/red]"
+            name = f"[bold]{repo.name:<{name_w}}[/bold]"
+            branch = f"[cyan]{(repo.branch or '—'):<{branch_w}}[/cyan]"
+            if repo.error:
+                extra = f"[red]{repo.error}[/red]"
+            elif not repo.is_clean:
+                extra = _compact_details(repo)
+            else:
+                extra = ""
+            self._console.print(f"  {icon}  {name}  {branch}  {extra}")
+
+        self._console.print(_summary_line(repos))
+
     def render(self, repos: list[RepoInfo]) -> None:
         """Print a colored table to the console."""
         if not repos:
@@ -110,6 +133,24 @@ def _remote_cell(repo: RepoInfo) -> str:
     if repo.behind:
         parts.append(f"[red]↓{repo.behind}[/red]")
     return " ".join(parts)
+
+
+def _compact_details(repo: RepoInfo) -> str:
+    parts: list[str] = []
+    if repo.staged:
+        parts.append(f"[yellow]{repo.staged} staged[/yellow]")
+    if repo.unstaged:
+        parts.append(f"[red]{repo.unstaged} modified[/red]")
+    if repo.untracked:
+        parts.append(f"[dim]{repo.untracked} untracked[/dim]")
+    if repo.has_remote:
+        if repo.ahead:
+            parts.append(f"[yellow]↑{repo.ahead}[/yellow]")
+        if repo.behind:
+            parts.append(f"[red]↓{repo.behind}[/red]")
+    else:
+        parts.append("[dim]no remote[/dim]")
+    return " · ".join(parts)
 
 
 def _summary_line(repos: list[RepoInfo]) -> str:

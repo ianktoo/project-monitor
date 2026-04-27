@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import io
 import logging
+import random
 import sys
 import time
 from pathlib import Path
@@ -39,6 +40,22 @@ app = typer.Typer(
 )
 
 _stderr = Console(stderr=True)
+
+_TAGLINES = [
+    "your repos, at a glance",
+    "git status, everywhere",
+    "no repo left behind",
+    "keep your branches in check",
+    "know where you stand",
+    "the bird's-eye view of your work",
+    "all your branches, one look",
+]
+
+
+def _print_intro(use_color: bool = True) -> None:
+    c = Console(stderr=True, highlight=False, no_color=not use_color)
+    tagline = random.choice(_TAGLINES)
+    c.print(f"  [bold cyan]⎇  pmon[/bold cyan] [dim]v{__version__}[/dim]  [italic dim]{tagline}[/italic dim]")
 
 
 def _version_callback(value: bool) -> None:
@@ -78,6 +95,12 @@ def main(
         "--no-color",
         help="Disable ANSI color output.",
     ),
+    compact: bool = typer.Option(
+        False,
+        "--compact",
+        "-c",
+        help="Condensed one-line-per-repo view.",
+    ),
     verbose: bool = typer.Option(
         False,
         "--verbose",
@@ -100,6 +123,7 @@ def main(
     ),
 ) -> None:
     """Scan PATH for git repositories and print their status."""
+    _print_intro(use_color=not no_color)
     _configure_logging(verbose=verbose, log_file=log_file)
     logger = logging.getLogger("project_monitor")
 
@@ -130,7 +154,11 @@ def main(
             _stderr.print(f"[red]Error: cannot write to {output}: {exc}[/red]")
             raise typer.Exit(1)
     else:
-        TableFormatter(use_color=not no_color).render(repo_infos)
+        fmt = TableFormatter(use_color=not no_color)
+        if compact:
+            fmt.render_compact(repo_infos)
+        else:
+            fmt.render(repo_infos)
 
 
 def _configure_logging(verbose: bool, log_file: Optional[Path]) -> None:
