@@ -11,6 +11,7 @@ from typer.testing import CliRunner
 from project_monitor.cli import app
 from project_monitor.models import RepoInfo
 from project_monitor.store import TagStore
+from project_monitor import __version__
 
 runner = CliRunner()
 
@@ -49,7 +50,7 @@ def test_cli_default_path_is_cwd(tmp_path: Path, monkeypatch):
 def test_cli_version_flag():
     result = runner.invoke(app, ["--version"])
     assert result.exit_code == 0
-    assert "0.3.2" in result.output
+    assert __version__ in result.output
 
 
 # ---------------------------------------------------------------------------
