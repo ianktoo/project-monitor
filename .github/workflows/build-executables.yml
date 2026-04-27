@@ -2,6 +2,10 @@ name: Build Executables
 
 on:
   workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag to upload assets to (e.g. v0.3.1)"
+        required: false
   release:
     types: [published]
 
@@ -48,8 +52,10 @@ jobs:
           path: dist/${{ matrix.exe }}
 
       - name: Upload to release
-        if: github.event_name == 'release'
+        if: github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && inputs.tag != '')
         shell: bash
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh release upload "${{ github.ref_name }}" "dist/${{ matrix.exe }}#${{ matrix.artifact }}"
+        run: |
+          TAG="${{ github.event_name == 'release' && github.ref_name || inputs.tag }}"
+          gh release upload "$TAG" "dist/${{ matrix.exe }}#${{ matrix.artifact }}" --clobber
