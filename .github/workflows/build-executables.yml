@@ -23,10 +23,6 @@ jobs:
             artifact: pmon-linux-x86_64
             exe: pmon
             pyinstaller_extra: "--strip"
-          - os: macos-13
-            artifact: pmon-macos-intel
-            exe: pmon
-            pyinstaller_extra: ""
           - os: macos-latest
             artifact: pmon-macos-arm64
             exe: pmon
