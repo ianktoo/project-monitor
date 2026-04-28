@@ -395,4 +395,5 @@ def _configure_logging(verbose: bool, log_file: Optional[Path]) -> None:
         level=level,
         format="%(asctime)s %(name)s %(levelname)s %(message)s",
         handlers=handlers,
+        force=True,
     )

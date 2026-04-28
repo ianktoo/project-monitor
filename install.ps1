@@ -61,12 +61,16 @@ foreach ($candidate in $candidates) {
     }
 }
 if (-not $scriptsDir) {
-    # Fall back to wherever pip reports the package location
-    $location = (& $python -m pip show pmon-cli 2>$null | Select-String 'Location:').ToString() -replace 'Location:\s*', ''
-    if ($location) {
-        # Scripts sits beside site-packages, one level up
-        $candidate = Join-Path (Split-Path $location -Parent) 'Scripts'
-        if (Test-Path (Join-Path $candidate 'p-mon.exe')) { $scriptsDir = $candidate }
+    # Fall back to wherever pip reports the package location.
+    # Guard against $null.ToString() under PS 5.1 with $ErrorActionPreference = 'Stop'.
+    $locationMatch = (& $python -m pip show pmon-cli 2>$null | Select-String 'Location:')
+    if ($locationMatch) {
+        $location = $locationMatch.ToString() -replace 'Location:\s*', ''
+        if ($location) {
+            # Scripts sits beside site-packages, one level up
+            $candidate = Join-Path (Split-Path $location -Parent) 'Scripts'
+            if (Test-Path (Join-Path $candidate 'p-mon.exe')) { $scriptsDir = $candidate }
+        }
     }
 }
 if (-not $scriptsDir) {

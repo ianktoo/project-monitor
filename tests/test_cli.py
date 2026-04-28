@@ -102,7 +102,6 @@ def test_cli_git_not_installed(tmp_path: Path):
 def test_cli_tag_current_dir(tmp_path: Path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     (tmp_path / ".git").mkdir()
-    store_path = tmp_path / "store.json"
 
     with patch("project_monitor.cli.TagStore") as MockStore:
         instance = MockStore.return_value
@@ -116,8 +115,7 @@ def test_cli_tag_explicit_path(tmp_path: Path):
     target = tmp_path / "my-project"
     target.mkdir()
     (target / ".git").mkdir()
-    store_path = tmp_path / "store.json"
-    store = TagStore(store_path=store_path)
+    store = TagStore(store_path=tmp_path / "store.json")
 
     with patch("project_monitor.cli.TagStore", return_value=store):
         result = runner.invoke(app, ["--tag", "personal", "--path", str(target)])

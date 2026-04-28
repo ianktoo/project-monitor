@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+from datetime import datetime
 from pathlib import Path
 from typing import IO
 
@@ -291,7 +292,6 @@ def _date_cell(repo: RepoInfo) -> str:
     if repo.date_added:
         return f"[dim]{repo.date_added[:10]}[/dim]"
     try:
-        from datetime import datetime
         ts = repo.path.stat().st_mtime
         return f"[dim]{datetime.fromtimestamp(ts).strftime('%Y-%m-%d')}[/dim]"
     except OSError:
