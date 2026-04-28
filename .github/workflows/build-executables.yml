@@ -63,6 +63,11 @@ jobs:
         shell: bash
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          INPUT_TAG: ${{ inputs.tag }}
         run: |
-          TAG="${{ github.event_name == 'release' && github.ref_name || inputs.tag }}"
+          if [ "$GITHUB_EVENT_NAME" = "release" ]; then
+            TAG="$GITHUB_REF_NAME"
+          else
+            TAG="$INPUT_TAG"
+          fi
           gh release upload "$TAG" "dist/${{ matrix.exe }}#${{ matrix.artifact }}" --clobber

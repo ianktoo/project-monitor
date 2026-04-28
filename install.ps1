@@ -56,8 +56,8 @@ if (-not $scriptsDir -or -not (Test-Path $scriptsDir)) {
 Write-Ok "Scripts: $scriptsDir"
 
 # ── 4. Ensure directory is on PATH ────────────────────────────────────────────
-$userPath    = [Environment]::GetEnvironmentVariable('PATH', 'User')    ?? ''
-$machinePath = [Environment]::GetEnvironmentVariable('PATH', 'Machine') ?? ''
+$userPath    = [string][Environment]::GetEnvironmentVariable('PATH', 'User')
+$machinePath = [string][Environment]::GetEnvironmentVariable('PATH', 'Machine')
 $combined    = "$userPath;$machinePath"
 
 if ($combined -like "*$scriptsDir*") {
