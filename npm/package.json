@@ -1,6 +1,6 @@
 {
   "name": "pmon-cli",
-  "version": "0.5.0",
+  "version": "0.5.1",
   "description": "Scan a folder for git repos and view their status at a glance",
   "license": "MIT",
   "homepage": "https://github.com/ianktoo/project-monitor",
