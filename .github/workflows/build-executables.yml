@@ -22,14 +22,17 @@ jobs:
           - os: ubuntu-latest
             artifact: pmon-linux-x86_64
             exe: pmon
+            release_asset: pmon-linux-x86_64
             pyinstaller_extra: "--strip"
           - os: macos-latest
             artifact: pmon-macos-arm64
             exe: pmon
+            release_asset: pmon-macos-arm64
             pyinstaller_extra: ""
           - os: windows-latest
             artifact: pmon-windows-x86_64
             exe: pmon.exe
+            release_asset: pmon-windows-x86_64.exe
             pyinstaller_extra: ""
 
     steps:
@@ -70,4 +73,5 @@ jobs:
           else
             TAG="$INPUT_TAG"
           fi
-          gh release upload "$TAG" "dist/${{ matrix.exe }}#${{ matrix.artifact }}" --clobber
+          cp "dist/${{ matrix.exe }}" "dist/${{ matrix.release_asset }}"
+          gh release upload "$TAG" "dist/${{ matrix.release_asset }}" --clobber

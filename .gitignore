@@ -39,3 +39,8 @@ htmlcov/
 # OS
 .DS_Store
 Thumbs.db
+
+# npm wrapper
+npm/bin/pmon
+npm/bin/pmon.exe
+npm/node_modules/

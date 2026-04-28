@@ -1,0 +1,29 @@
+{
+  "name": "pmon-cli",
+  "version": "0.5.0",
+  "description": "Scan a folder for git repos and view their status at a glance",
+  "license": "MIT",
+  "homepage": "https://github.com/ianktoo/project-monitor",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ianktoo/project-monitor.git",
+    "directory": "npm"
+  },
+  "bugs": {
+    "url": "https://github.com/ianktoo/project-monitor/issues"
+  },
+  "keywords": ["git", "cli", "developer-tools", "productivity", "status"],
+  "engines": {
+    "node": ">=18"
+  },
+  "bin": {
+    "p-mon": "bin/p-mon.js"
+  },
+  "scripts": {
+    "postinstall": "node postinstall.js"
+  },
+  "files": [
+    "bin/p-mon.js",
+    "postinstall.js"
+  ]
+}
