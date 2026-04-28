@@ -20,9 +20,10 @@ Scan a folder for git repositories and view their commit status at a glance — 
 
 - [Requirements](#requirements)
 - [Installation](#installation)
+  - [One-line installer (easiest)](#one-line-installer-easiest)
   - [Download pre-built binary](#download-pre-built-binary)
-  - [pipx (recommended)](#recommended--pipx-isolated-global-install)
-  - [pip](#standard--pip)
+  - [pipx](#pipx)
+  - [pip](#pip)
   - [From source](#from-source)
 - [Uninstallation](#uninstallation)
 - [Quick start](#quick-start)
@@ -52,6 +53,26 @@ git --version
 
 ## Installation
 
+### One-line installer (easiest)
+
+These scripts run `pip install` **and** wire up your PATH so `p-mon` works immediately — no manual environment setup needed.
+
+**Windows** (run in PowerShell):
+```powershell
+irm https://raw.githubusercontent.com/ianktoo/project-monitor/master/install.ps1 | iex
+```
+
+**macOS / Linux** (run in your terminal):
+```bash
+curl -sSL https://raw.githubusercontent.com/ianktoo/project-monitor/master/install.sh | sh
+```
+
+After the script completes, **restart your terminal** and run `p-mon`.
+
+> The scripts do three things: check Python is available, run `pip install --upgrade pmon-cli`, and permanently add Python's Scripts directory to your PATH if it isn't there already. You can inspect them in the repo root before running.
+
+---
+
 ### Download pre-built binary
 
 No Python or pip required — grab the standalone executable for your platform from the [**Releases page**](https://github.com/ianktoo/project-monitor/releases/latest):
@@ -60,16 +81,15 @@ No Python or pip required — grab the standalone executable for your platform f
 |---|---|
 | Windows (x86-64) | `pmon-windows-x86_64.exe` |
 | macOS (Apple Silicon) | `pmon-macos-arm64` |
-| macOS (Intel) | `pmon-macos-intel` |
 | Linux (x86-64) | `pmon-linux-x86_64` |
 
 Download, make it executable (macOS/Linux: `chmod +x pmon-*`), and drop it anywhere on your `PATH`.
 
 ---
 
-### Recommended — pipx (isolated, global install)
+### pipx
 
-[pipx](https://pipx.pypa.io) installs CLI tools in their own isolated environment so they never interfere with your other Python projects. This is the recommended way to install `p-mon`.
+[pipx](https://pipx.pypa.io) installs CLI tools in isolated environments and handles PATH automatically.
 
 ```bash
 pipx install pmon-cli
@@ -81,13 +101,13 @@ To upgrade later:
 pipx upgrade pmon-cli
 ```
 
-### Standard — pip
+### pip
 
 ```bash
 pip install pmon-cli
 ```
 
-> **Windows note:** if `p-mon` is not found after installing, the Python Scripts folder may not be on your PATH. Run `python -m project_monitor` as a fallback, or add the Scripts folder to your PATH. pip will print the folder path in a warning if this is the case.
+> **PATH note:** if `p-mon` is not found after installing, Python's Scripts directory is not on your PATH. Use the [one-line installer](#one-line-installer-easiest) above to fix this automatically, or run `python -m project_monitor` as an immediate fallback.
 
 ### From source
 
@@ -217,21 +237,26 @@ The summary line below the table counts total repos, how many are clean, and how
 
 ### `p-mon: command not found` / `p-mon is not recognised`
 
-The Python Scripts folder is not on your PATH.
+Python's Scripts directory is not on your PATH. The fastest fix is to re-install using the one-line installer — it handles PATH automatically:
 
-**Option 1 — use pipx** (recommended, handles PATH automatically):
-```bash
-pipx install pmon-cli
+**Windows:**
+```powershell
+irm https://raw.githubusercontent.com/ianktoo/project-monitor/master/install.ps1 | iex
 ```
 
-**Option 2 — run as a module** (always works):
+**macOS / Linux:**
+```bash
+curl -sSL https://raw.githubusercontent.com/ianktoo/project-monitor/master/install.sh | sh
+```
+
+Restart your terminal after running it.
+
+**Fallback — run as a Python module** (always works without any PATH changes):
 ```bash
 python -m project_monitor
 ```
 
-**Option 3 — add Scripts to PATH** (Windows):
-
-Find the Scripts folder pip printed during install (e.g. `C:\Users\you\AppData\Roaming\Python\Python312\Scripts`), then add it to your PATH in System Settings → Environment Variables.
+**Manual fix** (Windows): find the Scripts folder pip printed during install (e.g. `C:\Users\you\AppData\Roaming\Python\Python312\Scripts`) and add it to PATH in System Settings → Environment Variables.
 
 ---
 
