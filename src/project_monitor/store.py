@@ -4,25 +4,41 @@ from __future__ import annotations
 
 import json
 import logging
+import shutil
 from datetime import datetime
 from pathlib import Path
 
-logger = logging.getLogger(__name__)
+from project_monitor.paths import DEFAULT_STORE, LEGACY_STORE
 
-_DEFAULT_STORE = Path.home() / ".pmon" / "tags.json"
+logger = logging.getLogger(__name__)
 
 
 class TagStore:
-    """JSON-backed store at ~/.pmon/tags.json.
+    """JSON-backed store at ~/.p-mon/tags.json.
 
     Each entry maps an absolute path string to metadata:
       { "tag": "...", "name": "...", "added_at": "ISO-timestamp" }
     """
 
     def __init__(self, store_path: Path | None = None) -> None:
-        self._path = store_path if store_path is not None else _DEFAULT_STORE
+        self._path = store_path if store_path is not None else DEFAULT_STORE
         self._data: dict[str, dict] = {}
+        self._migrate_if_needed()
         self._load()
+
+    def _migrate_if_needed(self) -> None:
+        if self._path != DEFAULT_STORE:
+            return
+        if self._path.exists():
+            return
+        if not LEGACY_STORE.exists():
+            return
+        try:
+            self._path.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(LEGACY_STORE, self._path)
+            logger.info("Migrated tag store from %s to %s", LEGACY_STORE, self._path)
+        except OSError as exc:
+            logger.warning("Could not migrate tag store: %s", exc)
 
     def _load(self) -> None:
         if not self._path.exists():

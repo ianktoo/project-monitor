@@ -188,3 +188,37 @@ def test_add_resolves_path(tmp_path: Path):
     target.mkdir()
     s.add(target, "x")
     assert s.get_tag(target / ".." / "proj") == "x"
+
+
+# ---------------------------------------------------------------------------
+# Migration from legacy store
+
+
+def test_migration_from_legacy_store(tmp_path: Path):
+    """Tags in the legacy ~/.pmon/tags.json are silently copied to the new store on first use."""
+    import json
+    import project_monitor.store as store_mod
+
+    legacy = tmp_path / "legacy" / "tags.json"
+    new_path = tmp_path / "new" / "tags.json"
+    proj = tmp_path / "my-proj"
+    proj.mkdir()
+
+    legacy.parent.mkdir()
+    legacy.write_text(
+        json.dumps({str(proj): {"tag": "work", "name": "my-proj", "added_at": "2024-01-01T00:00:00"}}),
+        encoding="utf-8",
+    )
+
+    original_default = store_mod.DEFAULT_STORE
+    original_legacy = store_mod.LEGACY_STORE
+    store_mod.DEFAULT_STORE = new_path
+    store_mod.LEGACY_STORE = legacy
+    try:
+        s = TagStore(store_path=None)  # use default → triggers migration check
+    finally:
+        store_mod.DEFAULT_STORE = original_default
+        store_mod.LEGACY_STORE = original_legacy
+
+    assert new_path.exists(), "new store was not created"
+    assert s.get_tag(proj) == "work", "tag was not migrated"

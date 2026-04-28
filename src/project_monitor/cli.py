@@ -33,6 +33,7 @@ from project_monitor.formatters.table import TableFormatter
 from project_monitor.formatters.text import TextFormatter
 from project_monitor.git_ops import check_git_available, get_repo_status
 from project_monitor.models import RepoInfo
+from project_monitor.paths import DEFAULT_LOG
 from project_monitor.scanner import scan_for_repos
 from project_monitor.store import TagStore
 
@@ -384,12 +385,28 @@ def main(
 
 
 def _configure_logging(verbose: bool, log_file: Optional[Path]) -> None:
-    level = logging.DEBUG if verbose else logging.WARNING
-    handlers: list[logging.Handler] = [logging.StreamHandler()]
-    if log_file:
-        handlers.append(logging.FileHandler(log_file, encoding="utf-8"))
+    from logging.handlers import RotatingFileHandler
+
+    console_level = logging.DEBUG if verbose else logging.WARNING
+    console_handler = logging.StreamHandler()
+    console_handler.setLevel(console_level)
+
+    log_path = log_file or DEFAULT_LOG
+    try:
+        log_path.parent.mkdir(parents=True, exist_ok=True)
+        file_handler = RotatingFileHandler(
+            log_path,
+            maxBytes=1_000_000,
+            backupCount=3,
+            encoding="utf-8",
+        )
+        file_handler.setLevel(logging.INFO)
+        handlers: list[logging.Handler] = [console_handler, file_handler]
+    except OSError:
+        handlers = [console_handler]
+
     logging.basicConfig(
-        level=level,
+        level=logging.DEBUG,
         format="%(asctime)s %(name)s %(levelname)s %(message)s",
         handlers=handlers,
         force=True,

@@ -68,79 +68,89 @@ if [ $INSTALL_RC -ne 0 ]; then
 fi
 ok "pmon-cli installed"
 
-# ── 4. Find scripts directory ─────────────────────────────────────────────────
-# pip may install to the system scripts dir or the user scripts dir depending on
-# whether the system site-packages is writable.  Check both.
-step "Locating scripts directory..."
-SCRIPTS_DIR=""
+# ── 4. Create ~/.p-mon home directory ─────────────────────────────────────────
+PMON_HOME="$HOME/.p-mon"
+PMON_BIN="$PMON_HOME/bin"
+PMON_LOGS="$PMON_HOME/logs"
+PMON_DOCS="$PMON_HOME/docs"
 
-# Build list of candidates: system dir, then user dirs (Linux ~/.local/bin and
-# macOS ~/Library/Python/X.Y/bin), then the sysconfig user-scheme path.
-SYS_SCRIPTS=$("$PYTHON" -c "import sysconfig; print(sysconfig.get_path('scripts'))" 2>/dev/null || true)
-PY_MINOR=$("$PYTHON" -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')" 2>/dev/null || true)
-USER_SCHEME_SCRIPTS=$("$PYTHON" -c "
-import sys, sysconfig
-if sys.version_info >= (3, 10):
-    scheme = sysconfig.get_preferred_scheme('user')
-elif sys.platform == 'darwin':
-    scheme = 'osx_framework_user'
-else:
-    scheme = 'posix_user'
-print(sysconfig.get_path('scripts', scheme))
-" 2>/dev/null || true)
+step "Setting up ~/.p-mon home..."
+mkdir -p "$PMON_BIN" "$PMON_LOGS" "$PMON_DOCS"
+ok "Created $PMON_HOME"
 
-for candidate in \
-    "$SYS_SCRIPTS" \
-    "$HOME/.local/bin" \
-    "$HOME/Library/Python/${PY_MINOR}/bin" \
-    "$USER_SCHEME_SCRIPTS"; do
-    if [ -n "$candidate" ] && [ -f "$candidate/p-mon" ]; then
-        SCRIPTS_DIR="$candidate"
-        break
-    fi
-done
+# ── 5. Write wrapper script ────────────────────────────────────────────────────
+step "Writing wrapper script..."
+WRAPPER="$PMON_BIN/p-mon"
+cat > "$WRAPPER" << 'WRAPPER_EOF'
+#!/usr/bin/env sh
+exec python3 -m project_monitor "$@"
+WRAPPER_EOF
+chmod +x "$WRAPPER"
+ok "Wrapper: $WRAPPER"
 
-if [ -z "$SCRIPTS_DIR" ]; then
-    warn "Could not locate p-mon after install."
-    warn "Run 'python -m project_monitor' as a fallback."
-    exit 0
-fi
-ok "Scripts: $SCRIPTS_DIR"
+# ── 6. Write quickstart doc ────────────────────────────────────────────────────
+cat > "$PMON_DOCS/quickstart.md" << 'DOC_EOF'
+# p-mon quick reference
 
-# ── 5. Ensure directory is on PATH ────────────────────────────────────────────
+## Scan
+  p-mon                    # scan current directory
+  p-mon ~/projects         # scan a specific folder
+  p-mon --depth 3          # scan deeper (1–3, default 2)
+  p-mon --compact          # one-line-per-repo view
+  p-mon --local            # skip remote/GitHub details
+
+## Tag & track
+  p-mon --tag LABEL                    # tag current repo
+  p-mon --tag LABEL --path DIR         # tag a specific repo
+  p-mon --tag LABEL --folder DIR       # bulk-tag all repos in a folder
+  p-mon --global                       # show all tagged projects
+  p-mon --global --local               # show tags without running git
+
+## Output
+  p-mon --output report.txt            # export plain-text report
+  p-mon --log-file debug.log           # write debug log to file
+  p-mon --version                      # show version
+
+## Data stored in ~/.p-mon/
+  tags.json    tagged project registry
+  logs/        rotating run log (pmon.log)
+  docs/        this file
+DOC_EOF
+ok "Quickstart: $PMON_DOCS/quickstart.md"
+
+# ── 7. Ensure ~/.p-mon/bin is on PATH ─────────────────────────────────────────
 case ":${PATH}:" in
-    *":${SCRIPTS_DIR}:"*)
+    *":${PMON_BIN}:"*)
         ok "Already on PATH"
         printf '\n  Done. Run:  p-mon\n\n'
         exit 0
         ;;
 esac
 
-step "Adding $SCRIPTS_DIR to your shell profile..."
+step "Adding $PMON_BIN to your shell profile..."
 
-# Detect the right profile file (including fish)
 SHELL_NAME="$(basename "${SHELL:-}")"
 if [ -n "$FISH_VERSION" ] || [ "$SHELL_NAME" = "fish" ]; then
     PROFILE="$HOME/.config/fish/config.fish"
-    LINE="fish_add_path $SCRIPTS_DIR"
+    LINE="fish_add_path $PMON_BIN"
 elif [ -n "$ZSH_VERSION" ] || [ "$SHELL_NAME" = "zsh" ]; then
     PROFILE="$HOME/.zshrc"
-    LINE="export PATH=\"${SCRIPTS_DIR}:\$PATH\""
+    LINE="export PATH=\"${PMON_BIN}:\$PATH\""
 elif [ -f "$HOME/.bashrc" ]; then
     PROFILE="$HOME/.bashrc"
-    LINE="export PATH=\"${SCRIPTS_DIR}:\$PATH\""
+    LINE="export PATH=\"${PMON_BIN}:\$PATH\""
 elif [ -f "$HOME/.bash_profile" ]; then
     PROFILE="$HOME/.bash_profile"
-    LINE="export PATH=\"${SCRIPTS_DIR}:\$PATH\""
+    LINE="export PATH=\"${PMON_BIN}:\$PATH\""
 else
     PROFILE="$HOME/.profile"
-    LINE="export PATH=\"${SCRIPTS_DIR}:\$PATH\""
+    LINE="export PATH=\"${PMON_BIN}:\$PATH\""
 fi
 
-if grep -qF "$SCRIPTS_DIR" "$PROFILE" 2>/dev/null; then
+if grep -qF "$PMON_BIN" "$PROFILE" 2>/dev/null; then
     ok "$PROFILE already references this directory"
 else
-    printf '\n# pmon-cli\n%s\n' "$LINE" >> "$PROFILE"
+    printf '\n# p-mon\n%s\n' "$LINE" >> "$PROFILE"
     ok "Added to $PROFILE"
 fi
 

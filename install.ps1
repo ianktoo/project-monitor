@@ -45,51 +45,64 @@ if ($LASTEXITCODE -ne 0) {
 }
 Write-Ok "pmon-cli installed"
 
-# ── 3. Find scripts directory ─────────────────────────────────────────────────
-# pip may fall back to a user install if the system site-packages is not writable,
-# so check both the system scripts dir and the user scripts dir.
-Write-Step "Locating scripts directory..."
-$scriptsDir = $null
-$candidates = @(
-    (& $python -c "import sysconfig; print(sysconfig.get_path('scripts'))" 2>$null),
-    (& $python -c "import sysconfig; print(sysconfig.get_path('scripts', 'nt_user'))" 2>$null)
-)
-foreach ($candidate in $candidates) {
-    if ($candidate -and (Test-Path (Join-Path $candidate 'p-mon.exe'))) {
-        $scriptsDir = $candidate
-        break
-    }
+# ── 3. Create ~/.p-mon home directory ─────────────────────────────────────────
+Write-Step "Setting up ~/.p-mon home..."
+$pmonHome  = Join-Path $env:USERPROFILE '.p-mon'
+$pmonBin   = Join-Path $pmonHome 'bin'
+$pmonLogs  = Join-Path $pmonHome 'logs'
+$pmonDocs  = Join-Path $pmonHome 'docs'
+foreach ($dir in @($pmonBin, $pmonLogs, $pmonDocs)) {
+    if (-not (Test-Path $dir)) { New-Item -ItemType Directory -Path $dir -Force | Out-Null }
 }
-if (-not $scriptsDir) {
-    # Fall back to wherever pip reports the package location.
-    # Guard against $null.ToString() under PS 5.1 with $ErrorActionPreference = 'Stop'.
-    $locationMatch = (& $python -m pip show pmon-cli 2>$null | Select-String 'Location:')
-    if ($locationMatch) {
-        $location = $locationMatch.ToString() -replace 'Location:\s*', ''
-        if ($location) {
-            # Scripts sits beside site-packages, one level up
-            $candidate = Join-Path (Split-Path $location -Parent) 'Scripts'
-            if (Test-Path (Join-Path $candidate 'p-mon.exe')) { $scriptsDir = $candidate }
-        }
-    }
-}
-if (-not $scriptsDir) {
-    Write-Warn "Could not locate p-mon.exe after install."
-    Write-Warn "Run 'python -m project_monitor' as a fallback."
-    exit 0
-}
-Write-Ok "Scripts: $scriptsDir"
+Write-Ok "Created $pmonHome"
 
-# ── 4. Ensure directory is on PATH ────────────────────────────────────────────
+# ── 4. Write wrapper script ────────────────────────────────────────────────────
+Write-Step "Writing wrapper script..."
+$wrapper = Join-Path $pmonBin 'p-mon.cmd'
+Set-Content -Path $wrapper -Value "@python -m project_monitor %*" -Encoding ASCII
+Write-Ok "Wrapper: $wrapper"
+
+# ── 5. Write quickstart doc ────────────────────────────────────────────────────
+$doc = Join-Path $pmonDocs 'quickstart.md'
+Set-Content -Path $doc -Encoding UTF8 -Value @'
+# p-mon quick reference
+
+## Scan
+  p-mon                    # scan current directory
+  p-mon ~/projects         # scan a specific folder
+  p-mon --depth 3          # scan deeper (1-3, default 2)
+  p-mon --compact          # one-line-per-repo view
+  p-mon --local            # skip remote/GitHub details
+
+## Tag & track
+  p-mon --tag LABEL                    # tag current repo
+  p-mon --tag LABEL --path DIR         # tag a specific repo
+  p-mon --tag LABEL --folder DIR       # bulk-tag all repos in a folder
+  p-mon --global                       # show all tagged projects
+  p-mon --global --local               # show tags without running git
+
+## Output
+  p-mon --output report.txt            # export plain-text report
+  p-mon --log-file debug.log           # write debug log to file
+  p-mon --version                      # show version
+
+## Data stored in ~/.p-mon/
+  tags.json    tagged project registry
+  logs/        rotating run log (pmon.log)
+  docs/        this file
+'@
+Write-Ok "Quickstart: $doc"
+
+# ── 6. Ensure ~/.p-mon\bin is on PATH ─────────────────────────────────────────
 $userPath    = [string][Environment]::GetEnvironmentVariable('PATH', 'User')
 $machinePath = [string][Environment]::GetEnvironmentVariable('PATH', 'Machine')
 $combined    = "$userPath;$machinePath"
 
-if ($combined -like "*$scriptsDir*") {
+if ($combined -like "*$pmonBin*") {
     Write-Ok "Already on PATH"
 } else {
-    Write-Step "Adding $scriptsDir to your user PATH..."
-    $newPath = ($userPath.TrimEnd(';') + ';' + $scriptsDir).TrimStart(';')
+    Write-Step "Adding $pmonBin to your user PATH..."
+    $newPath = ($userPath.TrimEnd(';') + ';' + $pmonBin).TrimStart(';')
     [Environment]::SetEnvironmentVariable('PATH', $newPath, 'User')
     Write-Ok "PATH updated"
     Write-Host ""
