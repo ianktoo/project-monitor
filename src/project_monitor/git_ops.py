@@ -94,6 +94,8 @@ def _run_git(args: list[str], cwd: Path) -> tuple[str, str]:
         return "", "git permission denied"
     except subprocess.TimeoutExpired:
         return "", f"git command timed out after {_GIT_TIMEOUT}s"
+    except OSError as exc:
+        return "", f"OS error running git: {exc}"
 
 
 def _parse_status(raw: str) -> tuple[str, int, int, bool, int, int, int]:

@@ -194,6 +194,13 @@ def test_run_git_permission_error(tmp_path: Path):
     assert "permission" in err.lower()
 
 
+def test_run_git_generic_oserror(tmp_path: Path):
+    with patch("subprocess.run", side_effect=BlockingIOError("too many open files")):
+        out, err = _run_git(["status"], tmp_path)
+    assert out == ""
+    assert "OS error" in err
+
+
 def test_run_git_nonzero_returncode(tmp_path: Path):
     mock_result = _make_run_result(returncode=128, stderr="not a git repository")
     with patch("subprocess.run", return_value=mock_result):

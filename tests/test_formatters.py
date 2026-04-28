@@ -394,3 +394,49 @@ def test_render_compact_shows_tag_when_present(tmp_path: Path):
     TableFormatter(file=buf, use_color=False, ascii_only=True).render_compact([repo])
     output = buf.getvalue()
     assert "work" in output
+
+
+# ---------------------------------------------------------------------------
+# Rich markup injection — bracket-containing user data must not crash or
+# produce garbled output (e.g. branch "feature/[AB-123]", Jira-style names)
+
+
+def test_branch_with_brackets_does_not_crash(tmp_path: Path):
+    repo = RepoInfo(name="proj", path=tmp_path, branch="feature/[AB-123]")
+    output = capture_table([repo])
+    assert "feature/[AB-123]" in output
+
+
+def test_commit_message_with_brackets_does_not_crash(tmp_path: Path):
+    repo = RepoInfo(
+        name="proj", path=tmp_path, branch="main",
+        last_commit_hash="abc1234",
+        last_commit_msg="fix: [hotfix] handle timeout",
+    )
+    output = capture_table([repo])
+    assert "[hotfix]" in output
+
+
+def test_tag_with_brackets_does_not_crash(tmp_path: Path):
+    repo = RepoInfo(name="proj", path=tmp_path, branch="main", tag="[urgent]")
+    output = capture_table([repo])
+    assert "[urgent]" in output
+
+
+def test_repo_name_with_brackets_does_not_crash(tmp_path: Path):
+    repo = RepoInfo(name="my-[project]", path=tmp_path, branch="main")
+    output = capture_table([repo])
+    assert "my-[project]" in output
+
+
+def test_compact_branch_with_brackets_does_not_crash(tmp_path: Path):
+    buf = io.StringIO()
+    repo = RepoInfo(name="r", path=tmp_path, branch="feature/[AB-999]")
+    TableFormatter(file=buf, use_color=False, ascii_only=True).render_compact([repo])
+    assert "feature/[AB-999]" in buf.getvalue()
+
+
+def test_error_with_brackets_does_not_crash(tmp_path: Path):
+    repo = RepoInfo(name="proj", path=tmp_path, branch="?", error="fatal: [Errno 13] Permission denied")
+    output = capture_table([repo])
+    assert "proj" in output

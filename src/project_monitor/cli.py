@@ -309,9 +309,6 @@ def main(
 
     # ── Tagging mode ────────────────────────────────────────────────────
     if tag and not show_global:
-        if folder is None and proj_path is None and path is None:
-            # Tag the current working directory
-            pass
         _handle_tagging(
             tag=tag,
             folder=folder,

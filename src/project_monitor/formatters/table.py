@@ -9,6 +9,7 @@ from typing import IO
 
 from rich import box
 from rich.console import Console
+from rich.markup import escape
 from rich.table import Table
 
 from project_monitor.models import RepoInfo
@@ -65,7 +66,7 @@ class TableFormatter:
 
         for repo in repos:
             row = [
-                repo.name,
+                escape(repo.name),
                 _branch_cell(repo),
                 _status_cell(repo),
                 _commit_cell(repo),
@@ -81,7 +82,7 @@ class TableFormatter:
         for repo in repos:
             if repo.error:
                 logger.warning("Error reading repo %s: %s", repo.name, repo.error)
-                self._console.print(f"[red]  ! {repo.name}: {repo.error}[/red]")
+                self._console.print(f"[red]  ! {escape(repo.name)}: {escape(repo.error)}[/red]")
 
     # ------------------------------------------------------------------
     # Compact view
@@ -99,13 +100,11 @@ class TableFormatter:
 
         for repo in repos:
             icon = "[green]✓[/green]" if (repo.is_clean and not repo.error) else "[red]✗[/red]"
-            name = f"[bold]{repo.name:<{name_w}}[/bold]"
-            branch = f"[cyan]{(repo.branch or '—'):<{branch_w}}[/cyan]"
-            # Use Text.assemble-friendly approach: tag label without [] to avoid
-            # being interpreted as Rich markup tags
-            tag_part = f"[dim]{(repo.tag or ''):<{tag_w}}[/dim]  " if show_tag else ""
+            name = f"[bold]{escape(repo.name):<{name_w}}[/bold]"
+            branch = f"[cyan]{escape(repo.branch or '—'):<{branch_w}}[/cyan]"
+            tag_part = f"[dim]{escape(repo.tag or ''):<{tag_w}}[/dim]  " if show_tag else ""
             if repo.error:
-                extra = f"[red]{repo.error}[/red]"
+                extra = f"[red]{escape(repo.error)}[/red]"
             elif not repo.is_clean:
                 extra = _compact_details(repo)
             else:
@@ -133,7 +132,7 @@ class TableFormatter:
 
         for repo in repos:
             table.add_row(
-                repo.name,
+                escape(repo.name),
                 _branch_cell(repo),
                 _status_cell(repo),
                 _tag_cell(repo),
@@ -147,7 +146,7 @@ class TableFormatter:
         for repo in repos:
             if repo.error:
                 logger.warning("Error reading repo %s: %s", repo.name, repo.error)
-                self._console.print(f"[red]  ! {repo.name}: {repo.error}[/red]")
+                self._console.print(f"[red]  ! {escape(repo.name)}: {escape(repo.error)}[/red]")
 
     # ------------------------------------------------------------------
     # Global tagged-projects view
@@ -168,7 +167,7 @@ class TableFormatter:
 
         for repo in repos:
             table.add_row(
-                repo.name,
+                escape(repo.name),
                 _tag_cell(repo),
                 _branch_cell(repo),
                 _status_cell(repo),
@@ -180,7 +179,7 @@ class TableFormatter:
 
         tags = sorted({r.tag for r in repos if r.tag})
         tag_label = (
-            "  · tags: " + " ".join(f"[cyan]{t}[/cyan]" for t in tags)
+            "  · tags: " + " ".join(f"[cyan]{escape(t)}[/cyan]" for t in tags)
             if tags
             else ""
         )
@@ -190,7 +189,7 @@ class TableFormatter:
 
         for repo in repos:
             if repo.error:
-                self._console.print(f"[red]  ! {repo.name}: {repo.error}[/red]")
+                self._console.print(f"[red]  ! {escape(repo.name)}: {escape(repo.error)}[/red]")
 
     def render_global_local(self, entries: list[dict]) -> None:
         """Print global view without running git — store data only."""
@@ -213,8 +212,8 @@ class TableFormatter:
             added = (entry.get("added_at") or "—")[:10]
             tag_str = entry.get("tag") or "—"
             table.add_row(
-                entry.get("name") or p.name,
-                f"[cyan]{tag_str}[/cyan]",
+                escape(entry.get("name") or p.name),
+                f"[cyan]{escape(tag_str)}[/cyan]",
                 f"[dim]{path_str}[/dim]",
                 f"[dim]{added}[/dim]",
                 exists_cell,
@@ -223,7 +222,7 @@ class TableFormatter:
         self._console.print(table)
         tags = sorted({e.get("tag", "") for e in entries if e.get("tag")})
         tag_label = (
-            "  · tags: " + " ".join(f"[cyan]{t}[/cyan]" for t in tags)
+            "  · tags: " + " ".join(f"[cyan]{escape(t)}[/cyan]" for t in tags)
             if tags
             else ""
         )
@@ -239,7 +238,7 @@ class TableFormatter:
 def _branch_cell(repo: RepoInfo) -> str:
     if repo.error:
         return "[dim]—[/dim]"
-    return f"[cyan]{repo.branch}[/cyan]"
+    return f"[cyan]{escape(repo.branch)}[/cyan]"
 
 
 def _status_cell(repo: RepoInfo) -> str:
@@ -260,7 +259,7 @@ def _status_cell(repo: RepoInfo) -> str:
 def _commit_cell(repo: RepoInfo) -> str:
     if repo.error or not repo.last_commit_hash:
         return "[dim]—[/dim]"
-    return f"[dim]{repo.last_commit_hash}[/dim] {repo.last_commit_msg}"
+    return f"[dim]{repo.last_commit_hash}[/dim] {escape(repo.last_commit_msg)}"
 
 
 def _remote_cell(repo: RepoInfo) -> str:
@@ -281,11 +280,11 @@ def _remote_cell(repo: RepoInfo) -> str:
 def _tag_cell(repo: RepoInfo) -> str:
     if not repo.tag:
         return "[dim]—[/dim]"
-    return f"[cyan]{repo.tag}[/cyan]"
+    return f"[cyan]{escape(repo.tag)}[/cyan]"
 
 
 def _path_cell(repo: RepoInfo) -> str:
-    return f"[dim]{_shorten_path(repo.path)}[/dim]"
+    return f"[dim]{escape(_shorten_path(repo.path))}[/dim]"
 
 
 def _date_cell(repo: RepoInfo) -> str:
