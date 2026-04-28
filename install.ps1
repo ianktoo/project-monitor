@@ -46,10 +46,31 @@ if ($LASTEXITCODE -ne 0) {
 Write-Ok "pmon-cli installed"
 
 # ── 3. Find scripts directory ─────────────────────────────────────────────────
+# pip may fall back to a user install if the system site-packages is not writable,
+# so check both the system scripts dir and the user scripts dir.
 Write-Step "Locating scripts directory..."
-$scriptsDir = & $python -c "import sysconfig; print(sysconfig.get_path('scripts'))"
-if (-not $scriptsDir -or -not (Test-Path $scriptsDir)) {
-    Write-Warn "Could not confirm scripts directory: $scriptsDir"
+$scriptsDir = $null
+$candidates = @(
+    (& $python -c "import sysconfig; print(sysconfig.get_path('scripts'))" 2>$null),
+    (& $python -c "import sysconfig; print(sysconfig.get_path('scripts', 'nt_user'))" 2>$null)
+)
+foreach ($candidate in $candidates) {
+    if ($candidate -and (Test-Path (Join-Path $candidate 'p-mon.exe'))) {
+        $scriptsDir = $candidate
+        break
+    }
+}
+if (-not $scriptsDir) {
+    # Fall back to wherever pip reports the package location
+    $location = (& $python -m pip show pmon-cli 2>$null | Select-String 'Location:').ToString() -replace 'Location:\s*', ''
+    if ($location) {
+        # Scripts sits beside site-packages, one level up
+        $candidate = Join-Path (Split-Path $location -Parent) 'Scripts'
+        if (Test-Path (Join-Path $candidate 'p-mon.exe')) { $scriptsDir = $candidate }
+    }
+}
+if (-not $scriptsDir) {
+    Write-Warn "Could not locate p-mon.exe after install."
     Write-Warn "Run 'python -m project_monitor' as a fallback."
     exit 0
 }
