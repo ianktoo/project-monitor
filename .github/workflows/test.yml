@@ -11,10 +11,20 @@ permissions:
 
 jobs:
   test:
-    runs-on: ubuntu-latest
+    name: Test (${{ matrix.os }}, Python ${{ matrix.python-version }})
+    runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false
       matrix:
-        python-version: ["3.9", "3.10", "3.11", "3.12"]
+        os: [ubuntu-latest]
+        python-version: ["3.9", "3.10", "3.11", "3.12", "3.13", "3.14"]
+        # Windows and macOS on the oldest and newest supported Pythons.
+        # On Windows this also runs tests/test_install_ps1.py (PowerShell 5.1).
+        include:
+          - { os: windows-latest, python-version: "3.9" }
+          - { os: windows-latest, python-version: "3.14" }
+          - { os: macos-latest, python-version: "3.9" }
+          - { os: macos-latest, python-version: "3.14" }
 
     steps:
       - uses: actions/checkout@v4
@@ -27,20 +37,4 @@ jobs:
         run: pip install -e ".[dev]"
 
       - name: Run tests
-        run: python -m pytest
-
-  installer-tests:
-    name: Installer tests (PS 5.1, Windows)
-    runs-on: windows-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-
-      - name: Install package and dev deps
-        run: pip install -e ".[dev]"
-
-      - name: Run installer tests
-        run: python -m pytest tests/test_install_ps1.py -v
+        run: python -m pytest -v
