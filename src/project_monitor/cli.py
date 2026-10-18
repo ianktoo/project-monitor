@@ -7,11 +7,13 @@ import logging
 import random
 import sys
 import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 from typing import Optional
 
 import typer
 from rich.console import Console
+from rich.markup import escape
 from rich.progress import BarColumn, MofNCompleteColumn, Progress, SpinnerColumn, TextColumn, TimeElapsedColumn
 
 
@@ -45,6 +47,10 @@ app = typer.Typer(
 
 _stderr = Console(stderr=True)
 
+# git calls are subprocess-bound, so threads overlap them well; more workers
+# than this mostly adds disk contention on large scans.
+_MAX_WORKERS = 8
+
 _TAGLINES = [
     "your repos, at a glance",
     "git status, everywhere",
@@ -69,9 +75,12 @@ def _version_callback(value: bool) -> None:
 
 
 def _fetch_with_progress(repo_paths: list[Path], no_color: bool) -> list[RepoInfo]:
-    """Run get_repo_status on each path, showing a Rich progress bar on stderr."""
+    """Run get_repo_status on each path in parallel, showing a Rich progress bar on stderr.
+
+    Results are returned in the same order as *repo_paths*.
+    """
     progress_console = Console(stderr=True, highlight=False, no_color=no_color)
-    infos: list[RepoInfo] = []
+    infos: list[RepoInfo | None] = [None] * len(repo_paths)
     with Progress(
         SpinnerColumn(),
         TextColumn("[progress.description]{task.description}"),
@@ -84,10 +93,13 @@ def _fetch_with_progress(repo_paths: list[Path], no_color: bool) -> list[RepoInf
         task = progress.add_task(
             f"Checking {len(repo_paths)} repo(s)…", total=len(repo_paths)
         )
-        for p in repo_paths:
-            infos.append(get_repo_status(p))
-            progress.advance(task)
-    return infos
+        workers = max(1, min(_MAX_WORKERS, len(repo_paths)))
+        with ThreadPoolExecutor(max_workers=workers) as pool:
+            futures = {pool.submit(get_repo_status, p): i for i, p in enumerate(repo_paths)}
+            for fut in as_completed(futures):
+                infos[futures[fut]] = fut.result()
+                progress.advance(task)
+    return infos  # type: ignore[return-value]
 
 
 def _handle_tagging(
@@ -106,42 +118,44 @@ def _handle_tagging(
     if folder:
         repo_paths = scan_for_repos(folder.resolve(), max_depth=depth)
         if not repo_paths:
-            _stderr.print(f"[yellow]No git repos found in {folder}[/yellow]")
+            _stderr.print(f"[yellow]No git repos found in {escape(str(folder))}[/yellow]")
             raise typer.Exit(0)
+        tagged = 0
         for rp in repo_paths:
             try:
                 store.add(rp, tag)
+                tagged += 1
                 _stderr.print(
-                    f"  [green]✓[/green] Tagged [bold]{rp.name}[/bold] → [cyan]{tag}[/cyan]"
+                    f"  [green]✓[/green] Tagged [bold]{escape(rp.name)}[/bold] → [cyan]{escape(tag)}[/cyan]"
                 )
             except OSError as exc:
-                _stderr.print(f"  [red]✗[/red] Could not tag {rp.name}: {exc}")
+                _stderr.print(f"  [red]✗[/red] Could not tag {escape(rp.name)}: {escape(str(exc))}")
         _stderr.print(
-            f"\n  [bold]{len(repo_paths)} repo(s) tagged as '[cyan]{tag}[/cyan]'[/bold]"
+            f"\n  [bold]{tagged} of {len(repo_paths)} repo(s) tagged as '[cyan]{escape(tag)}[/cyan]'[/bold]"
         )
-        raise typer.Exit(0)
+        raise typer.Exit(0 if tagged == len(repo_paths) else 1)
 
     target = (proj_path or scan_path or Path.cwd()).resolve()
     if not target.exists():
-        _stderr.print(f"[red]Error: path does not exist: {target}[/red]")
+        _stderr.print(f"[red]Error: path does not exist: {escape(str(target))}[/red]")
         raise typer.Exit(1)
     if not target.is_dir():
-        _stderr.print(f"[red]Error: path is not a directory: {target}[/red]")
+        _stderr.print(f"[red]Error: path is not a directory: {escape(str(target))}[/red]")
         raise typer.Exit(1)
 
     if not (target / ".git").exists():
-        _stderr.print(f"  [yellow]![/yellow] {target} does not appear to be a git repo")
+        _stderr.print(f"  [yellow]![/yellow] {escape(str(target))} does not appear to be a git repo")
 
     try:
         store.add(target, tag)
     except OSError as exc:
-        _stderr.print(f"[red]Error: could not save tag: {exc}[/red]")
+        _stderr.print(f"[red]Error: could not save tag: {escape(str(exc))}[/red]")
         raise typer.Exit(1)
 
     _stderr.print(
-        f"  [green]✓[/green] Tagged [bold]{target.name}[/bold] → [cyan]{tag}[/cyan]"
+        f"  [green]✓[/green] Tagged [bold]{escape(target.name)}[/bold] → [cyan]{escape(tag)}[/cyan]"
     )
-    _stderr.print(f"  [dim]{target}[/dim]")
+    _stderr.print(f"  [dim]{escape(str(target))}[/dim]")
     raise typer.Exit(0)
 
 
@@ -157,7 +171,7 @@ def _handle_global(
 
     if not entries:
         if tag_filter:
-            _stderr.print(f"[yellow]No projects tagged '{tag_filter}'.[/yellow]")
+            _stderr.print(f"[yellow]No projects tagged '{escape(tag_filter)}'.[/yellow]")
         else:
             _stderr.print(
                 "[yellow]No tagged projects yet.[/yellow] "
@@ -177,7 +191,7 @@ def _handle_global(
 
     for e in missing:
         _stderr.print(
-            f"  [yellow]![/yellow] [bold]{e['name']}[/bold]: path not found — {e['path']}"
+            f"  [yellow]![/yellow] [bold]{escape(e['name'])}[/bold]: path not found — {escape(str(e['path']))}"
         )
 
     if not accessible:
@@ -307,6 +321,16 @@ def main(
     logger = logging.getLogger("project_monitor")
 
     store = TagStore()
+    _warn_ignored_options(
+        tag=tag,
+        folder=folder,
+        proj_path=proj_path,
+        path=path,
+        output=output,
+        local=local,
+        compact=compact,
+        show_global=show_global,
+    )
 
     # ── Tagging mode ────────────────────────────────────────────────────
     if tag and not show_global:
@@ -354,7 +378,7 @@ def main(
         repo_paths.sort()
 
     if not repo_paths:
-        _stderr.print(f"[yellow]No git repositories found under {root}[/yellow]")
+        _stderr.print(f"[yellow]No git repositories found under {escape(str(root))}[/yellow]")
         raise typer.Exit(0)
 
     repo_infos = _fetch_with_progress(repo_paths, no_color=no_color)
@@ -370,9 +394,9 @@ def main(
     if output:
         try:
             TextFormatter(output).render(repo_infos)
-            _stderr.print(f"Results written to [bold]{output}[/bold]")
+            _stderr.print(f"Results written to [bold]{escape(str(output))}[/bold]")
         except OSError as exc:
-            _stderr.print(f"[red]Error: cannot write to {output}: {exc}[/red]")
+            _stderr.print(f"[red]Error: cannot write to {escape(str(output))}: {escape(str(exc))}[/red]")
             raise typer.Exit(1)
     else:
         fmt = TableFormatter(use_color=not no_color)
@@ -382,6 +406,27 @@ def main(
             fmt.render_compact(repo_infos)
         else:
             fmt.render(repo_infos)
+
+
+def _warn_ignored_options(
+    tag: Optional[str],
+    folder: Optional[Path],
+    proj_path: Optional[Path],
+    path: Optional[Path],
+    output: Optional[Path],
+    local: bool,
+    compact: bool,
+    show_global: bool,
+) -> None:
+    """Tell the user about option combinations that would otherwise be silently ignored."""
+    if folder and not tag:
+        _stderr.print("  [yellow]![/yellow] --folder is only used with --tag; ignoring it.")
+    if proj_path and path and proj_path != path:
+        _stderr.print(
+            f"  [yellow]![/yellow] Both PATH and --path given; using --path ({escape(str(proj_path))})."
+        )
+    if output and not show_global and not tag and (local or compact):
+        _stderr.print("  [yellow]![/yellow] --output writes the full table; --local/--compact are ignored.")
 
 
 def _configure_logging(verbose: bool, log_file: Optional[Path]) -> None:

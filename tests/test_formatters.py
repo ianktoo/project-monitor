@@ -440,3 +440,51 @@ def test_error_with_brackets_does_not_crash(tmp_path: Path):
     repo = RepoInfo(name="proj", path=tmp_path, branch="?", error="fatal: [Errno 13] Permission denied")
     output = capture_table([repo])
     assert "proj" in output
+
+
+# ---------------------------------------------------------------------------
+# Conflicts, deleted upstream, unpushed commits on clean repos
+
+
+def test_status_cell_shows_conflicts(tmp_path: Path):
+    repo = RepoInfo(name="r", path=tmp_path, branch="main", conflicts=2)
+    output = capture_table([repo])
+    assert "2 conflicted" in output
+    assert "Clean" not in output
+
+
+def test_remote_cell_upstream_gone(tmp_path: Path):
+    repo = RepoInfo(name="r", path=tmp_path, branch="main", has_remote=True, upstream_gone=True)
+    output = capture_table([repo])
+    assert "Upstream gone" in output
+    assert "In sync" not in output
+
+
+def test_compact_shows_unpushed_commits_on_clean_repo(tmp_path: Path):
+    buf = io.StringIO()
+    repo = RepoInfo(name="r", path=tmp_path, branch="main", has_remote=True, ahead=3)
+    TableFormatter(file=buf, use_color=False, ascii_only=True).render_compact([repo])
+    assert "↑3" in buf.getvalue()
+
+
+def test_compact_clean_repo_without_remote_has_no_noise(tmp_path: Path):
+    buf = io.StringIO()
+    repo = RepoInfo(name="r", path=tmp_path, branch="main")
+    TableFormatter(file=buf, use_color=False, ascii_only=True).render_compact([repo])
+    assert "no remote" not in buf.getvalue()
+
+
+def test_global_local_path_with_markup_is_escaped(tmp_path: Path):
+    buf = io.StringIO()
+    p = tmp_path / "x[bold]y"
+    entries = [{"path": p, "tag": "t", "name": "n", "added_at": "2024-01-01"}]
+    TableFormatter(file=buf, use_color=False, ascii_only=True).render_global_local(entries)
+    assert "x[bold]y" in buf.getvalue()
+
+
+def test_error_printed_once(tmp_path: Path, caplog):
+    repo = RepoInfo(name="proj", path=tmp_path, branch="?", error="boom")
+    with caplog.at_level("WARNING"):
+        output = capture_table([repo])
+    assert output.count("boom") == 1
+    assert "boom" not in caplog.text

@@ -17,15 +17,17 @@ class RepoInfo:
     Args:
         name: Folder name of the repository.
         path: Absolute path to the repository root.
-        branch: Current branch name (e.g. "main", "feature/x"). "HEAD" if detached.
+        branch: Current branch name (e.g. "main", "feature/x"). "(detached)" if detached.
         staged: Number of files staged for the next commit.
         unstaged: Number of tracked files with unstaged modifications.
         untracked: Number of untracked (new) files.
+        conflicts: Number of unmerged (conflicted) files.
         last_commit_hash: Abbreviated commit hash (7 chars), or "" if no commits.
         last_commit_msg: Commit subject line, truncated to 40 chars.
         ahead: Commits ahead of the upstream remote branch.
         behind: Commits behind the upstream remote branch.
         has_remote: True if an upstream remote tracking branch is configured.
+        upstream_gone: True if the configured upstream branch no longer exists.
         error: Non-None if any git command failed; contains the error message.
         tag: Optional user-assigned label from the pmon tag store.
         date_added: ISO timestamp when this path was tagged, from the store.
@@ -42,16 +44,18 @@ class RepoInfo:
     ahead: int = 0
     behind: int = 0
     has_remote: bool = False
+    conflicts: int = 0
+    upstream_gone: bool = False
     error: str | None = None
     tag: str | None = None
     date_added: str | None = None
 
     @property
     def is_clean(self) -> bool:
-        """True when there are no staged, unstaged, or untracked changes."""
-        return self.staged == 0 and self.unstaged == 0 and self.untracked == 0
+        """True when there are no staged, unstaged, untracked, or conflicted files."""
+        return self.total_changes == 0
 
     @property
     def total_changes(self) -> int:
-        """Total number of changed files (staged + unstaged + untracked)."""
-        return self.staged + self.unstaged + self.untracked
+        """Total number of changed files (staged + unstaged + untracked + conflicts)."""
+        return self.staged + self.unstaged + self.untracked + self.conflicts

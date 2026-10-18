@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import shutil
+import tempfile
 from datetime import datetime
 from pathlib import Path
 
@@ -18,11 +20,19 @@ class TagStore:
 
     Each entry maps an absolute path string to metadata:
       { "tag": "...", "name": "...", "added_at": "ISO-timestamp" }
+
+    Writes are atomic (temp file + rename). If the file exists but cannot be
+    parsed, the store starts empty and the original is copied to
+    ``tags.json.corrupt-<timestamp>`` before it is first overwritten, so
+    existing tags are never silently lost. If it cannot be read at all,
+    saving is refused.
     """
 
     def __init__(self, store_path: Path | None = None) -> None:
         self._path = store_path if store_path is not None else DEFAULT_STORE
         self._data: dict[str, dict] = {}
+        self._unreadable = False
+        self._needs_backup = False
         self._migrate_if_needed()
         self._load()
 
@@ -46,25 +56,70 @@ class TagStore:
         try:
             with open(self._path, encoding="utf-8") as fh:
                 raw = json.load(fh)
-            self._data = raw if isinstance(raw, dict) else {}
-        except (json.JSONDecodeError, OSError) as exc:
+        except OSError as exc:
             logger.warning("Could not read tag store %s: %s", self._path, exc)
+            self._unreadable = True
+            return
+        except (json.JSONDecodeError, UnicodeDecodeError) as exc:
+            logger.warning("Tag store %s is corrupt: %s", self._path, exc)
+            self._needs_backup = True
+            return
+
+        if not isinstance(raw, dict):
+            logger.warning("Tag store %s has an unexpected format", self._path)
+            self._needs_backup = True
+            return
+
+        valid = {k: v for k, v in raw.items() if isinstance(v, dict)}
+        if len(valid) != len(raw):
+            logger.warning(
+                "Ignoring %d malformed entr(ies) in tag store %s",
+                len(raw) - len(valid),
+                self._path,
+            )
+            self._needs_backup = True
+        self._data = valid
+
+    def _backup_corrupt(self) -> None:
+        stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+        backup = self._path.with_name(f"{self._path.name}.corrupt-{stamp}")
+        shutil.copy2(self._path, backup)
+        self._needs_backup = False
+        logger.warning("Saved a copy of the unreadable tag store to %s", backup)
 
     def _save(self) -> None:
+        if self._unreadable:
+            raise OSError(
+                f"tag store {self._path} could not be read; refusing to overwrite it"
+            )
         try:
+            if self._needs_backup:
+                # Raises on failure: without a backup, saving would lose data.
+                self._backup_corrupt()
             self._path.parent.mkdir(parents=True, exist_ok=True)
-            with open(self._path, "w", encoding="utf-8") as fh:
-                json.dump(self._data, fh, indent=2, default=str)
+            fd, tmp = tempfile.mkstemp(
+                dir=self._path.parent, prefix=f".{self._path.name}.", suffix=".tmp"
+            )
+            try:
+                with os.fdopen(fd, "w", encoding="utf-8") as fh:
+                    json.dump(self._data, fh, indent=2, default=str)
+                os.replace(tmp, self._path)
+            except BaseException:
+                try:
+                    os.unlink(tmp)
+                except OSError:
+                    pass
+                raise
         except OSError as exc:
             logger.error("Failed to save tag store %s: %s", self._path, exc)
             raise
 
     def add(self, path: Path, tag: str) -> None:
         """Tag *path* with *tag*, overwriting any existing tag."""
-        key = str(path.resolve())
-        self._data[key] = {
+        resolved = path.resolve()
+        self._data[str(resolved)] = {
             "tag": tag,
-            "name": path.resolve().name,
+            "name": resolved.name,
             "added_at": datetime.now().isoformat(timespec="seconds"),
         }
         self._save()
@@ -81,7 +136,7 @@ class TagStore:
     def get_tag(self, path: Path) -> str | None:
         """Return the tag for *path*, or None if not tagged."""
         entry = self._data.get(str(path.resolve()))
-        return entry["tag"] if entry else None
+        return entry.get("tag") if entry else None
 
     def get_added_at(self, path: Path) -> str | None:
         """Return the ISO timestamp when *path* was tagged, or None."""
