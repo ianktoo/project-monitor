@@ -1,9 +1,22 @@
 name: Publish to npm
 
+# Runs after the release binaries are uploaded, because npm/postinstall.js
+# downloads them from the GitHub release at install time.
+#
+# Uses npm trusted publishing (OIDC): no NPM_TOKEN secret. One-time setup on
+# npmjs.com -> pmon-cli -> Settings -> Trusted publisher: GitHub Actions,
+# repository ianktoo/project-monitor, workflow publish-npm.yml.
+# npm only allows this for a package that already exists, so the very first
+# version must be published by hand (cd npm && npm publish --access public).
+
 on:
   workflow_run:
     workflows: ["Build Executables"]
     types: [completed]
+
+permissions:
+  contents: read
+  id-token: write
 
 jobs:
   publish:
@@ -11,30 +24,39 @@ jobs:
     runs-on: ubuntu-latest
     if: >
       github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'release' &&
       startsWith(github.event.workflow_run.head_branch, 'v')
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           ref: ${{ github.event.workflow_run.head_sha }}
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
-          node-version: '20'
-          registry-url: 'https://registry.npmjs.org'
+          node-version: "24"
+          registry-url: "https://registry.npmjs.org"
+
+      # Trusted publishing needs npm >= 11.5.1.
+      - name: Update npm
+        run: npm install -g npm@11
 
       - name: Validate npm version matches tag
+        id: version
+        env:
+          TAG: ${{ github.event.workflow_run.head_branch }}
         run: |
-          TAG="${{ github.event.workflow_run.head_branch }}"
           TAG_VERSION="${TAG#v}"
           PKG_VERSION=$(node -p "require('./npm/package.json').version")
           if [ "$TAG_VERSION" != "$PKG_VERSION" ]; then
-            echo "ERROR: Tag $TAG does not match npm/package.json version $PKG_VERSION"
+            echo "::error::Tag $TAG does not match npm/package.json version $PKG_VERSION"
             exit 1
           fi
-          echo "Version check passed: $TAG_VERSION"
+          if npm view "pmon-cli@$PKG_VERSION" version >/dev/null 2>&1; then
+            echo "pmon-cli@$PKG_VERSION is already published; skipping."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Publish to npm
-        run: npm publish npm/ --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        if: steps.version.outputs.skip != 'true'
+        run: npm publish ./npm --access public

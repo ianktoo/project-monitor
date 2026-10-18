@@ -4,10 +4,13 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: "Release tag to upload assets to (e.g. v0.3.2)"
+        description: "Release tag to build and upload assets to (e.g. v0.3.2)"
         required: false
   release:
     types: [published]
+
+permissions:
+  contents: read
 
 jobs:
   build:
@@ -36,9 +39,12 @@ jobs:
             pyinstaller_extra: ""
 
     steps:
-      - uses: actions/checkout@v4
+      # Build the tagged source: the release tag, or the tag given to a manual run.
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ inputs.tag || github.ref }}
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with:
           python-version: "3.12"
           cache: "pip"
@@ -56,7 +62,7 @@ jobs:
           src/project_monitor/__main__.py
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: ${{ matrix.artifact }}
           path: dist/${{ matrix.exe }}
@@ -67,11 +73,13 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           INPUT_TAG: ${{ inputs.tag }}
+          EXE: ${{ matrix.exe }}
+          RELEASE_ASSET: ${{ matrix.release_asset }}
         run: |
           if [ "$GITHUB_EVENT_NAME" = "release" ]; then
             TAG="$GITHUB_REF_NAME"
           else
             TAG="$INPUT_TAG"
           fi
-          cp "dist/${{ matrix.exe }}" "dist/${{ matrix.release_asset }}"
-          gh release upload "$TAG" "dist/${{ matrix.release_asset }}" --clobber
+          cp "dist/$EXE" "dist/$RELEASE_ASSET"
+          gh release upload "$TAG" "dist/$RELEASE_ASSET" --clobber
