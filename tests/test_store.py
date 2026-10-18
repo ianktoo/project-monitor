@@ -222,3 +222,64 @@ def test_migration_from_legacy_store(tmp_path: Path):
 
     assert new_path.exists(), "new store was not created"
     assert s.get_tag(proj) == "work", "tag was not migrated"
+
+
+# ---------------------------------------------------------------------------
+# Corrupt / malformed stores never lose data
+
+
+def test_corrupt_store_is_backed_up_before_overwrite(tmp_path: Path):
+    store_file = tmp_path / "tags.json"
+    original = '{"/a": {"tag": "x"}, "/b": {"tag": "y"'  # truncated JSON
+    store_file.write_text(original, encoding="utf-8")
+    s = TagStore(store_path=store_file)
+    d = tmp_path / "proj"
+    d.mkdir()
+    s.add(d, "new")
+
+    backups = list(tmp_path.glob("tags.json.corrupt-*"))
+    assert len(backups) == 1
+    assert backups[0].read_text(encoding="utf-8") == original
+    assert TagStore(store_path=store_file).get_tag(d) == "new"
+
+
+def test_corrupt_store_not_backed_up_on_read_only_use(tmp_path: Path):
+    store_file = tmp_path / "tags.json"
+    store_file.write_text("not json", encoding="utf-8")
+    TagStore(store_path=store_file)
+    TagStore(store_path=store_file)
+    assert list(tmp_path.glob("tags.json.corrupt-*")) == []
+
+
+def test_malformed_entries_are_skipped(tmp_path: Path):
+    store_file = tmp_path / "tags.json"
+    good = str((tmp_path / "good").resolve())
+    store_file.write_text(
+        json.dumps({good: {"tag": "ok"}, "/bad": "not-a-dict", "/notag": {"name": "n"}}),
+        encoding="utf-8",
+    )
+    s = TagStore(store_path=store_file)
+    assert s.count() == 2
+    assert s.get_tag(tmp_path / "good") == "ok"
+    assert s.get_tag(Path("/notag")) is None  # missing "tag" key must not raise
+    assert len(s.get_all()) == 2
+
+
+def test_unreadable_store_refuses_to_save(tmp_path: Path):
+    store_file = tmp_path / "tags.json"
+    store_file.mkdir()  # opening a directory raises OSError
+    s = TagStore(store_path=store_file)
+    d = tmp_path / "proj"
+    d.mkdir()
+    with pytest.raises(OSError):
+        s.add(d, "x")
+    assert store_file.is_dir()
+
+
+def test_save_leaves_no_temp_files(tmp_path: Path):
+    s = _store(tmp_path)
+    d = tmp_path / "proj"
+    d.mkdir()
+    s.add(d, "x")
+    s.add(d, "y")
+    assert sorted(f.name for f in tmp_path.iterdir()) == ["proj", "tags.json"]

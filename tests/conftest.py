@@ -12,6 +12,19 @@ from project_monitor.models import RepoInfo
 
 
 # ---------------------------------------------------------------------------
+# Isolation — never touch the real ~/.p-mon store or log during tests
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture(autouse=True)
+def _isolate_pmon_home(tmp_path_factory, monkeypatch):
+    home = tmp_path_factory.mktemp("pmon-home")
+    monkeypatch.setattr("project_monitor.store.DEFAULT_STORE", home / "tags.json")
+    monkeypatch.setattr("project_monitor.store.LEGACY_STORE", home / "legacy" / "tags.json")
+    monkeypatch.setattr("project_monitor.cli.DEFAULT_LOG", home / "logs" / "pmon.log")
+
+
+# ---------------------------------------------------------------------------
 # RepoInfo fixtures
 # ---------------------------------------------------------------------------
 

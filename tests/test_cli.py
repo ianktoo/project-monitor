@@ -244,3 +244,63 @@ def test_cli_all_includes_tagged_repos(tmp_path: Path):
     # Both repos found (tagged extra is inside tmp_path so also caught by scan)
     assert "Found 2 repo(s)" in result.output
     assert "scanned" in result.output
+
+
+# ---------------------------------------------------------------------------
+# Parallel status fetch, bulk-tag counting, ignored-option warnings
+
+
+def test_fetch_preserves_input_order_when_run_in_parallel(tmp_path: Path):
+    import time as _time
+
+    from project_monitor.cli import _fetch_with_progress
+
+    paths = [tmp_path / f"r{i}" for i in range(6)]
+
+    def slow_first(p: Path) -> RepoInfo:
+        if p.name == "r0":
+            _time.sleep(0.2)  # finishes last
+        return _clean_repo(p)
+
+    with patch("project_monitor.cli.get_repo_status", side_effect=slow_first):
+        infos = _fetch_with_progress(paths, no_color=True)
+    assert [i.path for i in infos] == paths
+
+
+def test_cli_bulk_tag_reports_failures(tmp_path: Path):
+    for name in ("repo-a", "repo-b"):
+        _make_repo_dir(tmp_path / name)
+    store = TagStore(store_path=tmp_path / "store.json")
+    calls = {"n": 0}
+    real_add = store.add
+
+    def flaky_add(path: Path, tag: str) -> None:
+        calls["n"] += 1
+        if calls["n"] == 2:
+            raise OSError("disk full")
+        real_add(path, tag)
+
+    store.add = flaky_add  # type: ignore[method-assign]
+    with patch("project_monitor.cli.TagStore", return_value=store):
+        result = runner.invoke(app, ["--tag", "t", "--folder", str(tmp_path)])
+    assert "1 of 2 repo(s) tagged" in result.output
+    assert result.exit_code == 1
+
+
+def test_cli_warns_folder_without_tag(tmp_path: Path):
+    result = runner.invoke(app, [str(tmp_path), "--folder", str(tmp_path)])
+    assert "--folder is only used with --tag" in result.output
+
+
+def test_cli_warns_output_ignores_compact(tmp_path: Path):
+    result = runner.invoke(app, [str(tmp_path), "--compact", "--output", str(tmp_path / "o.txt")])
+    assert "--local/--compact are ignored" in result.output
+
+
+def test_cli_tag_with_markup_does_not_crash(tmp_path: Path):
+    target = _make_repo_dir(tmp_path / "proj")
+    store = TagStore(store_path=tmp_path / "store.json")
+    with patch("project_monitor.cli.TagStore", return_value=store):
+        result = runner.invoke(app, ["--tag", "[/cyan]x", "--path", str(target)])
+    assert result.exit_code == 0
+    assert store.get_tag(target) == "[/cyan]x"

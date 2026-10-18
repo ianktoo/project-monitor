@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import logging
 from datetime import datetime
 from pathlib import Path
 from typing import IO
@@ -13,8 +12,6 @@ from rich.markup import escape
 from rich.table import Table
 
 from project_monitor.models import RepoInfo
-
-logger = logging.getLogger(__name__)
 
 
 class TableFormatter:
@@ -79,10 +76,7 @@ class TableFormatter:
         self._console.print(table)
         self._console.print(_summary_line(repos))
 
-        for repo in repos:
-            if repo.error:
-                logger.warning("Error reading repo %s: %s", repo.name, repo.error)
-                self._console.print(f"[red]  ! {escape(repo.name)}: {escape(repo.error)}[/red]")
+        self._print_errors(repos)
 
     # ------------------------------------------------------------------
     # Compact view
@@ -105,10 +99,8 @@ class TableFormatter:
             tag_part = f"[dim]{escape(repo.tag or ''):<{tag_w}}[/dim]  " if show_tag else ""
             if repo.error:
                 extra = f"[red]{escape(repo.error)}[/red]"
-            elif not repo.is_clean:
-                extra = _compact_details(repo)
             else:
-                extra = ""
+                extra = _compact_details(repo)
             self._console.print(f"  {icon}  {name}  {tag_part}{branch}  {extra}")
 
         self._console.print(_summary_line(repos))
@@ -143,10 +135,7 @@ class TableFormatter:
         self._console.print(table)
         self._console.print(_summary_line(repos))
 
-        for repo in repos:
-            if repo.error:
-                logger.warning("Error reading repo %s: %s", repo.name, repo.error)
-                self._console.print(f"[red]  ! {escape(repo.name)}: {escape(repo.error)}[/red]")
+        self._print_errors(repos)
 
     # ------------------------------------------------------------------
     # Global tagged-projects view
@@ -172,7 +161,7 @@ class TableFormatter:
                 _branch_cell(repo),
                 _status_cell(repo),
                 _path_cell(repo),
-                f"[dim]{(repo.date_added or '—')[:10]}[/dim]",
+                f"[dim]{escape((repo.date_added or '—')[:10])}[/dim]",
             )
 
         self._console.print(table)
@@ -187,9 +176,7 @@ class TableFormatter:
             f"  [bold]{len(repos)} tagged project(s)[/bold]{tag_label}"
         )
 
-        for repo in repos:
-            if repo.error:
-                self._console.print(f"[red]  ! {escape(repo.name)}: {escape(repo.error)}[/red]")
+        self._print_errors(repos)
 
     def render_global_local(self, entries: list[dict]) -> None:
         """Print global view without running git — store data only."""
@@ -214,8 +201,8 @@ class TableFormatter:
             table.add_row(
                 escape(entry.get("name") or p.name),
                 f"[cyan]{escape(tag_str)}[/cyan]",
-                f"[dim]{path_str}[/dim]",
-                f"[dim]{added}[/dim]",
+                f"[dim]{escape(path_str)}[/dim]",
+                f"[dim]{escape(added)}[/dim]",
                 exists_cell,
             )
 
@@ -229,6 +216,11 @@ class TableFormatter:
         self._console.print(
             f"  [bold]{len(entries)} tagged project(s)[/bold]{tag_label}"
         )
+
+    def _print_errors(self, repos: list[RepoInfo]) -> None:
+        for repo in repos:
+            if repo.error:
+                self._console.print(f"[red]  ! {escape(repo.name)}: {escape(repo.error)}[/red]")
 
 
 # ---------------------------------------------------------------------------
@@ -247,6 +239,8 @@ def _status_cell(repo: RepoInfo) -> str:
     if repo.is_clean:
         return "[green]✓ Clean[/green]"
     parts: list[str] = []
+    if repo.conflicts:
+        parts.append(f"{repo.conflicts} conflicted")
     if repo.staged:
         parts.append(f"{repo.staged} staged")
     if repo.unstaged:
@@ -267,6 +261,8 @@ def _remote_cell(repo: RepoInfo) -> str:
         return "[dim]—[/dim]"
     if not repo.has_remote:
         return "[dim]No remote[/dim]"
+    if repo.upstream_gone:
+        return "[yellow]Upstream gone[/yellow]"
     if repo.ahead == 0 and repo.behind == 0:
         return "[green]In sync[/green]"
     parts: list[str] = []
@@ -289,7 +285,7 @@ def _path_cell(repo: RepoInfo) -> str:
 
 def _date_cell(repo: RepoInfo) -> str:
     if repo.date_added:
-        return f"[dim]{repo.date_added[:10]}[/dim]"
+        return f"[dim]{escape(repo.date_added[:10])}[/dim]"
     try:
         ts = repo.path.stat().st_mtime
         return f"[dim]{datetime.fromtimestamp(ts).strftime('%Y-%m-%d')}[/dim]"
@@ -307,18 +303,22 @@ def _shorten_path(p: Path) -> str:
 
 def _compact_details(repo: RepoInfo) -> str:
     parts: list[str] = []
+    if repo.conflicts:
+        parts.append(f"[bold red]{repo.conflicts} conflicted[/bold red]")
     if repo.staged:
         parts.append(f"[yellow]{repo.staged} staged[/yellow]")
     if repo.unstaged:
         parts.append(f"[red]{repo.unstaged} modified[/red]")
     if repo.untracked:
         parts.append(f"[dim]{repo.untracked} untracked[/dim]")
-    if repo.has_remote:
+    if repo.upstream_gone:
+        parts.append("[yellow]upstream gone[/yellow]")
+    elif repo.has_remote:
         if repo.ahead:
             parts.append(f"[yellow]↑{repo.ahead}[/yellow]")
         if repo.behind:
             parts.append(f"[red]↓{repo.behind}[/red]")
-    else:
+    elif not repo.is_clean:
         parts.append("[dim]no remote[/dim]")
     return " · ".join(parts)
 

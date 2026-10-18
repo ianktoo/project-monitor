@@ -8,14 +8,19 @@ from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
+# Never descended into: dependency/cache trees that are large and never
+# contain the user's own repositories.
+_SKIP_DIRS = frozenset({"node_modules", "__pycache__", ".venv", "venv", ".tox", "site-packages"})
+
 
 def scan_for_repos(root: Path, max_depth: int = 2) -> list[Path]:
     """Find git repositories inside *root*, up to *max_depth* levels deep.
 
     If *root* itself is a git repository it is returned immediately without
     recursing further. Otherwise every subdirectory is visited up to
-    *max_depth* levels. Symlinks are never followed to avoid loops on
-    Windows junctions or Unix symlinks.
+    *max_depth* levels. Symlinks and Windows junctions (detected on
+    Python 3.12+) are never followed; *max_depth* bounds the walk regardless.
+    Dependency folders such as ``node_modules`` and ``.venv`` are skipped.
 
     Args:
         root: Directory to start scanning from.
@@ -57,10 +62,10 @@ def _walk(
         return
 
     for entry in entries:
-        if entry.is_symlink():
-            logger.debug("Skipping symlink: %s", entry.path)
+        if entry.is_symlink() or _is_junction(entry):
+            logger.debug("Skipping link: %s", entry.path)
             continue
-        if not entry.is_dir():
+        if not entry.is_dir() or entry.name in _SKIP_DIRS:
             continue
         child = Path(entry.path)
         if (child / ".git").exists():
@@ -68,3 +73,10 @@ def _walk(
             found.append(child)
         else:
             _walk(child, current_depth + 1, max_depth, found)
+
+
+def _is_junction(entry: os.DirEntry) -> bool:
+    # DirEntry.is_junction() exists from Python 3.12; earlier versions report
+    # junctions as plain directories.
+    is_junction = getattr(entry, "is_junction", None)
+    return bool(is_junction and is_junction())

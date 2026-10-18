@@ -126,3 +126,12 @@ def test_git_as_file_counts_as_repo(tmp_path: Path):
 def test_nonexistent_path_returns_empty(tmp_path: Path):
     missing = tmp_path / "does-not-exist"
     assert scan_for_repos(missing) == []
+
+
+
+def test_scan_skips_dependency_folders(tmp_path: Path):
+    (tmp_path / "node_modules" / "pkg" / ".git").mkdir(parents=True)
+    (tmp_path / ".venv" / "lib" / ".git").mkdir(parents=True)
+    (tmp_path / "real" / ".git").mkdir(parents=True)
+    found = scan_for_repos(tmp_path, max_depth=3)
+    assert found == [(tmp_path / "real").resolve()]
